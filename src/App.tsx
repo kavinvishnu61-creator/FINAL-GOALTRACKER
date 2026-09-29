@@ -1,5 +1,77 @@
+import { useEffect, useCallback, useState } from 'react';
+import { useStore } from './store';
+import { Sidebar } from './components/Sidebar';
+import { HomePage } from './pages/HomePage';
+import { TodayPage } from './pages/TodayPage';
+import { GoalsPage } from './pages/GoalsPage';
+import { GoalDetailPage } from './pages/GoalDetailPage';
+import { HabitsPage } from './pages/HabitsPage';
+import { FocusPage } from './pages/FocusPage';
+import { CalendarPage } from './pages/CalendarPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { CommandPalette } from './components/CommandPalette';
+import { ViewPage } from './types';
+
 export default function App() {
+  const { currentPage, theme, setTheme, selectedGoalId, setSelectedGoalId, setShowCommandPalette, showCommandPalette } = useStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
+    if (savedTheme) setTheme(savedTheme);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      setShowCommandPalette(!showCommandPalette);
+    }
+    if (e.key === 'Escape') {
+      setShowCommandPalette(false);
+    }
+  }, [showCommandPalette, setShowCommandPalette]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  const renderPage = () => {
+    if (selectedGoalId) {
+      return <GoalDetailPage />;
+    }
+    switch (currentPage) {
+      case 'home': return <HomePage />;
+      case 'today': return <TodayPage />;
+      case 'goals': return <GoalsPage />;
+      case 'habits': return <HabitsPage />;
+      case 'focus': return <FocusPage />;
+      case 'calendar': return <CalendarPage />;
+      case 'analytics': return <AnalyticsPage />;
+      default: return <HomePage />;
+    }
+  };
+
+  if (!mounted) return null;
+
   return (
-    <div/>
+    <div className="h-screen w-screen overflow-hidden flex bg-[#f8f9fb] dark:bg-[#0f1117] text-[#1a1d2e] dark:text-[#e4e6ed] transition-colors duration-200">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        {renderPage()}
+      </main>
+      {showCommandPalette && <CommandPalette />}
+    </div>
   );
 }
