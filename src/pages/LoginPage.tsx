@@ -38,6 +38,24 @@ export function LoginPage() {
         const { data, error } = await signUpWithEmail(displayName, cleanEmail, password);
 
         if (error) {
+          const errLower = error.message.toLowerCase();
+          // If rate limit reached or user already registered, attempt direct sign in
+          if (errLower.includes('rate limit') || errLower.includes('already registered')) {
+            const signInRes = await signInWithEmail(cleanEmail, password);
+            if (!signInRes.error && signInRes.data?.user) {
+              const userId = signInRes.data.user.id;
+              login(displayName, cleanEmail, userId);
+              return;
+            }
+            if (errLower.includes('rate limit')) {
+              setErrorMessage(
+                "Supabase email confirmation rate limit reached (3/hr). In Supabase Dashboard -> Authentication -> Providers -> Email, turn OFF 'Confirm email', or try the Sign In tab!"
+              );
+              setLoading(false);
+              return;
+            }
+          }
+
           setErrorMessage(error.message);
           setLoading(false);
           return;
@@ -51,6 +69,14 @@ export function LoginPage() {
         const { data, error } = await signInWithEmail(cleanEmail, password);
 
         if (error) {
+          const errLower = (error.message || '').toLowerCase();
+          if (errLower.includes('email not confirmed')) {
+            setErrorMessage(
+              "Please turn OFF 'Confirm email' in Supabase: Dashboard -> Authentication -> Providers -> Email -> uncheck 'Confirm email'."
+            );
+            setLoading(false);
+            return;
+          }
           setErrorMessage(error.message || 'Invalid email or password');
           setLoading(false);
           return;
