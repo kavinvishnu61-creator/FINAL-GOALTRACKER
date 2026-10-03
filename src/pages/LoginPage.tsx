@@ -122,11 +122,10 @@ export function LoginPage() {
                 setErrorMessage('');
                 setInfoMessage('');
               }}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                !isSignUp
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${!isSignUp
                   ? 'bg-white dark:bg-[#252836] text-[#111827] dark:text-white shadow-sm'
                   : 'text-[#6b7280] hover:text-[#111827] dark:hover:text-white'
-              }`}
+                }`}
             >
               Sign In
             </button>
@@ -137,11 +136,10 @@ export function LoginPage() {
                 setErrorMessage('');
                 setInfoMessage('');
               }}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                isSignUp
+              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${isSignUp
                   ? 'bg-white dark:bg-[#252836] text-[#111827] dark:text-white shadow-sm'
                   : 'text-[#6b7280] hover:text-[#111827] dark:hover:text-white'
-              }`}
+                }`}
             >
               Create Account
             </button>

@@ -106,23 +106,37 @@ export async function syncToSupabase(userId: string, data: UserSyncPayload): Pro
   }
 }
 
+export interface CloudLoadResult {
+  data: UserSyncPayload | null;
+  isNewUser: boolean;
+  error?: string | null;
+}
+
 /**
  * Loads user data payload from Supabase cloud
  */
-export async function loadFromSupabase(userId: string): Promise<UserSyncPayload | null> {
-  if (!userId) return null;
+export async function loadFromSupabase(userId: string): Promise<CloudLoadResult> {
+  if (!userId) return { data: null, isNewUser: true, error: null };
   try {
     const { data, error } = await supabase
       .from('user_sync')
       .select('data')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
-      return null;
+    if (error) {
+      console.warn('[Supabase Load Warning]:', error.message);
+      return { data: null, isNewUser: false, error: error.message };
     }
-    return data.data as UserSyncPayload;
-  } catch {
-    return null;
+
+    if (!data || !data.data) {
+      return { data: null, isNewUser: true, error: null };
+    }
+
+    return { data: data.data as UserSyncPayload, isNewUser: false, error: null };
+  } catch (err: any) {
+    console.warn('[Supabase Load Error]:', err);
+    return { data: null, isNewUser: false, error: err?.message || 'Network error' };
   }
 }
+

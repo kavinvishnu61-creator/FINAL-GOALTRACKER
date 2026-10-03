@@ -9,7 +9,7 @@ import {
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, parseISO, differenceInDays, isValid } from 'date-fns';
 
 import { safeFormat } from '../utils/date';
-import { syncToSupabase, loadFromSupabase, UserSyncPayload, signOutAuth } from '../utils/supabase';
+import { syncToSupabase, loadFromSupabase, UserSyncPayload, signOutAuth, CloudLoadResult } from '../utils/supabase';
 
 interface AppState {
   // Auth
@@ -113,6 +113,74 @@ const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308'
 
 
 
+export interface UserDataState {
+  goals: Goal[];
+  milestones: Milestone[];
+  projects: Project[];
+  tasks: Task[];
+  habits: Habit[];
+  habitCompletions: HabitCompletion[];
+  focusSessions: FocusSession[];
+  calendarEvents: CalendarEvent[];
+  dailyReviews: DailyReview[];
+  weeklyReviews: WeeklyReview[];
+  activityLog: ActivityLog[];
+  selectedGoalId: string | null;
+  selectedProjectId: string | null;
+}
+
+export const EMPTY_USER_DATA: UserDataState = {
+  goals: [],
+  milestones: [],
+  projects: [],
+  tasks: [],
+  habits: [],
+  habitCompletions: [],
+  focusSessions: [],
+  calendarEvents: [],
+  dailyReviews: [],
+  weeklyReviews: [],
+  activityLog: [],
+  selectedGoalId: null,
+  selectedProjectId: null,
+};
+
+const getCacheKey = (userId: string) => `momentum_cache_${userId}`;
+
+export const saveUserLocalCache = (userId: string, data: Partial<UserDataState>) => {
+  if (!userId || typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(getCacheKey(userId), JSON.stringify(data));
+  } catch (e) {
+    console.warn('Failed to save user local cache:', e);
+  }
+};
+
+export const loadUserLocalCache = (userId: string): Partial<UserDataState> | null => {
+  if (!userId || typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(getCacheKey(userId));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const extractUserDataPayload = (state: AppState): UserSyncPayload => ({
+  goals: state.goals || [],
+  milestones: state.milestones || [],
+  projects: state.projects || [],
+  tasks: state.tasks || [],
+  habits: state.habits || [],
+  habitCompletions: state.habitCompletions || [],
+  focusSessions: state.focusSessions || [],
+  calendarEvents: state.calendarEvents || [],
+  dailyReviews: state.dailyReviews || [],
+  weeklyReviews: state.weeklyReviews || [],
+  activityLog: state.activityLog || [],
+  theme: state.theme,
+});
+
 let syncTimeout: any = null;
 export const triggerDebouncedSync = () => {
   if (syncTimeout) clearTimeout(syncTimeout);
@@ -140,14 +208,66 @@ export const useStore = create<AppState>()(
           }
         }
         const user = { id: hashId, name, email: cleanEmail };
-        set({ user });
-        get().loadCloudData().then(() => {
-          get().syncCloudData();
-        });
+
+        // 1. Check isolated local cache for this specific user
+        const cached = loadUserLocalCache(user.id);
+        if (cached) {
+          set({
+            user,
+            ...EMPTY_USER_DATA,
+            ...cached,
+            syncStatus: 'idle',
+          });
+        } else {
+          // Brand new user or clean session -> start with 0 goals immediately!
+          set({
+            user,
+            ...EMPTY_USER_DATA,
+            syncStatus: 'syncing',
+          });
+        }
+
+        // 2. Fetch cloud data from Supabase for this user (safely without overwriting)
+        get().loadCloudData();
       },
       logout: () => {
-        signOutAuth();
-        set({ user: null, syncStatus: 'idle' });
+        if (syncTimeout) {
+          clearTimeout(syncTimeout);
+          syncTimeout = null;
+        }
+        const state = get();
+        if (state.user) {
+          const payload = extractUserDataPayload(state);
+          saveUserLocalCache(state.user.id, {
+            goals: payload.goals,
+            milestones: payload.milestones,
+            projects: payload.projects,
+            tasks: payload.tasks,
+            habits: payload.habits,
+            habitCompletions: payload.habitCompletions,
+            focusSessions: payload.focusSessions,
+            calendarEvents: payload.calendarEvents,
+            dailyReviews: payload.dailyReviews,
+            weeklyReviews: payload.weeklyReviews,
+            activityLog: payload.activityLog,
+            selectedGoalId: null,
+            selectedProjectId: null,
+          });
+          // Immediate flush to Supabase before auth token is revoked
+          syncToSupabase(state.user.id, payload)
+            .catch((e) => console.warn('Flush sync on logout warning:', e))
+            .finally(() => {
+              signOutAuth();
+            });
+        } else {
+          signOutAuth();
+        }
+        set({
+          user: null,
+          syncStatus: 'idle',
+          lastSyncedAt: null,
+          ...EMPTY_USER_DATA,
+        });
       },
 
       // Cloud Sync
@@ -157,20 +277,25 @@ export const useStore = create<AppState>()(
         const state = get();
         if (!state.user) return;
         set({ syncStatus: 'syncing' });
-        const payload: UserSyncPayload = {
-          goals: state.goals,
-          milestones: state.milestones,
-          projects: state.projects,
-          tasks: state.tasks,
-          habits: state.habits,
-          habitCompletions: state.habitCompletions,
-          focusSessions: state.focusSessions,
-          calendarEvents: state.calendarEvents,
-          dailyReviews: state.dailyReviews,
-          weeklyReviews: state.weeklyReviews,
-          activityLog: state.activityLog,
-          theme: state.theme,
-        };
+        const payload = extractUserDataPayload(state);
+
+        // Update isolated user cache locally
+        saveUserLocalCache(state.user.id, {
+          goals: payload.goals,
+          milestones: payload.milestones,
+          projects: payload.projects,
+          tasks: payload.tasks,
+          habits: payload.habits,
+          habitCompletions: payload.habitCompletions,
+          focusSessions: payload.focusSessions,
+          calendarEvents: payload.calendarEvents,
+          dailyReviews: payload.dailyReviews,
+          weeklyReviews: payload.weeklyReviews,
+          activityLog: payload.activityLog,
+          selectedGoalId: state.selectedGoalId,
+          selectedProjectId: state.selectedProjectId,
+        });
+
         const ok = await syncToSupabase(state.user.id, payload);
         if (ok) {
           set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
@@ -182,23 +307,69 @@ export const useStore = create<AppState>()(
         const state = get();
         if (!state.user) return;
         set({ syncStatus: 'syncing' });
-        const cloudData = await loadFromSupabase(state.user.id);
-        if (cloudData) {
-          set((s) => ({
-            ...s,
-            goals: Array.isArray(cloudData.goals) && cloudData.goals.length ? cloudData.goals : s.goals,
-            milestones: Array.isArray(cloudData.milestones) && cloudData.milestones.length ? cloudData.milestones : s.milestones,
-            projects: Array.isArray(cloudData.projects) && cloudData.projects.length ? cloudData.projects : s.projects,
-            tasks: Array.isArray(cloudData.tasks) && cloudData.tasks.length ? cloudData.tasks : s.tasks,
-            habits: Array.isArray(cloudData.habits) && cloudData.habits.length ? cloudData.habits : s.habits,
-            habitCompletions: Array.isArray(cloudData.habitCompletions) && cloudData.habitCompletions.length ? cloudData.habitCompletions : s.habitCompletions,
-            focusSessions: Array.isArray(cloudData.focusSessions) && cloudData.focusSessions.length ? cloudData.focusSessions : s.focusSessions,
-            calendarEvents: Array.isArray(cloudData.calendarEvents) && cloudData.calendarEvents.length ? cloudData.calendarEvents : s.calendarEvents,
+        const result = await loadFromSupabase(state.user.id);
+
+        if (result.error) {
+          console.warn('[Cloud Load Warning]:', result.error);
+          set({ syncStatus: 'error' });
+          return;
+        }
+
+        if (result.isNewUser) {
+          // Supabase has no row yet for this user.
+          // BUT check if the user already has goals in the current store (restored from local cache).
+          const currentGoals = get().goals;
+          if (currentGoals && currentGoals.length > 0) {
+            console.log('[Cloud Load] User has local goals; pushing to Supabase so cloud is up to date.');
+            get().syncCloudData();
+            return;
+          }
+
+          // Truly brand new user with no goals in local cache either
+          set({
+            ...EMPTY_USER_DATA,
             syncStatus: 'synced',
             lastSyncedAt: new Date().toISOString(),
-          }));
-        } else {
-          set({ syncStatus: 'idle' });
+          });
+          saveUserLocalCache(state.user.id, EMPTY_USER_DATA);
+          return;
+        }
+
+        if (result.data) {
+          const cloud = result.data;
+          const cloudGoals = Array.isArray(cloud.goals) ? cloud.goals : [];
+          const currentGoals = get().goals;
+
+          // If cloud data row is empty, but local cache already has goals, keep local and sync to cloud
+          if (cloudGoals.length === 0 && currentGoals && currentGoals.length > 0) {
+            get().syncCloudData();
+            return;
+          }
+
+          const loadedData = {
+            goals: cloudGoals,
+            milestones: Array.isArray(cloud.milestones) ? cloud.milestones : [],
+            projects: Array.isArray(cloud.projects) ? cloud.projects : [],
+            tasks: Array.isArray(cloud.tasks) ? cloud.tasks : [],
+            habits: Array.isArray(cloud.habits) ? cloud.habits : [],
+            habitCompletions: Array.isArray(cloud.habitCompletions) ? cloud.habitCompletions : [],
+            focusSessions: Array.isArray(cloud.focusSessions) ? cloud.focusSessions : [],
+            calendarEvents: Array.isArray(cloud.calendarEvents) ? cloud.calendarEvents : [],
+            dailyReviews: Array.isArray(cloud.dailyReviews) ? cloud.dailyReviews : [],
+            weeklyReviews: Array.isArray(cloud.weeklyReviews) ? cloud.weeklyReviews : [],
+            activityLog: Array.isArray(cloud.activityLog) ? cloud.activityLog : [],
+          };
+
+          set({
+            ...loadedData,
+            syncStatus: 'synced',
+            lastSyncedAt: new Date().toISOString(),
+          });
+          saveUserLocalCache(state.user.id, {
+            ...loadedData,
+            selectedGoalId: null,
+            selectedProjectId: null,
+          });
         }
       },
 
@@ -946,3 +1117,40 @@ export const useStore = create<AppState>()(
     }
   )
 );
+
+// Automatically save to isolated local cache and debounced-sync to Supabase whenever entity data changes
+useStore.subscribe((state, prevState) => {
+  if (!state.user) return;
+
+  if (
+    state.goals !== prevState.goals ||
+    state.milestones !== prevState.milestones ||
+    state.projects !== prevState.projects ||
+    state.tasks !== prevState.tasks ||
+    state.habits !== prevState.habits ||
+    state.habitCompletions !== prevState.habitCompletions ||
+    state.focusSessions !== prevState.focusSessions ||
+    state.calendarEvents !== prevState.calendarEvents ||
+    state.dailyReviews !== prevState.dailyReviews ||
+    state.weeklyReviews !== prevState.weeklyReviews ||
+    state.activityLog !== prevState.activityLog
+  ) {
+    saveUserLocalCache(state.user.id, {
+      goals: state.goals,
+      milestones: state.milestones,
+      projects: state.projects,
+      tasks: state.tasks,
+      habits: state.habits,
+      habitCompletions: state.habitCompletions,
+      focusSessions: state.focusSessions,
+      calendarEvents: state.calendarEvents,
+      dailyReviews: state.dailyReviews,
+      weeklyReviews: state.weeklyReviews,
+      activityLog: state.activityLog,
+      selectedGoalId: state.selectedGoalId,
+      selectedProjectId: state.selectedProjectId,
+    });
+    triggerDebouncedSync();
+  }
+});
+
