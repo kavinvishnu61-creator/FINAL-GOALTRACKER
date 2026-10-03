@@ -268,24 +268,24 @@ export const useStore = create<AppState>()(
             console.error('Invalid dates for interval', e);
           }
         }
-        
+
         const newEvents: CalendarEvent[] = days.map(d => ({
           id: uuidv4(),
           title: `Goal: ${goal.title}`,
           date: safeFormat(d, 'yyyy-MM-dd'),
           startTime: optimizedTime,
-          endTime: goal.optimizedEndTime || safeFormat(new Date(new Date(`2000-01-01T${optimizedTime}`).getTime() + 60*60*1000), 'HH:mm'),
+          endTime: goal.optimizedEndTime || safeFormat(new Date(new Date(`2000-01-01T${optimizedTime}`).getTime() + 60 * 60 * 1000), 'HH:mm'),
           type: 'event',
           goalId: goal.id,
           color: goal.color,
           completed: false,
         }));
 
-        set((state) => ({ 
+        set((state) => ({
           goals: [...state.goals, goal],
           calendarEvents: [...state.calendarEvents, ...newEvents]
         }));
-        
+
         get().logActivity('create', id, 'goal', `Created goal: ${goal.title}`);
         return id;
       },
