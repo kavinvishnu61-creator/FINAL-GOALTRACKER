@@ -94,7 +94,7 @@ export function HabitsPage() {
           {habits.map((habit) => {
             const isCompletedToday = habitCompletions.some(c => c.habitId === habit.id && c.date === today);
             const goal = goals.find(g => g.id === habit.goalId);
-            
+
             return (
               <div key={habit.id} className="bg-white dark:bg-[#181a24] rounded-xl border border-[#e5e7eb] dark:border-[#1e2030] p-5">
                 <div className="flex items-center justify-between mb-4">
@@ -113,11 +113,10 @@ export function HabitsPage() {
                     </div>
                     <button
                       onClick={() => toggleHabitCompletion(habit.id, today)}
-                      className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${
-                        isCompletedToday
+                      className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${isCompletedToday
                           ? 'border-emerald-500 bg-emerald-500 text-white'
                           : 'border-[#d1d5db] dark:border-[#4b5563] hover:border-emerald-400'
-                      }`}
+                        }`}
                     >
                       {isCompletedToday && <CheckCircle2 className="w-4 h-4" />}
                     </button>
@@ -126,7 +125,7 @@ export function HabitsPage() {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Streak Calendar */}
                 <div className="flex items-center gap-1">
                   {last14Days.map((date) => {
@@ -135,9 +134,8 @@ export function HabitsPage() {
                     return (
                       <div
                         key={date}
-                        className={`flex-1 h-6 rounded-sm transition-all ${
-                          completed ? '' : 'bg-[#f3f4f6] dark:bg-[#252836]'
-                        } ${isToday ? 'ring-1 ring-offset-1 ring-offset-white dark:ring-offset-[#181a24]' : ''}`}
+                        className={`flex-1 h-6 rounded-sm transition-all ${completed ? '' : 'bg-[#f3f4f6] dark:bg-[#252836]'
+                          } ${isToday ? 'ring-1 ring-offset-1 ring-offset-white dark:ring-offset-[#181a24]' : ''}`}
                         style={completed ? { backgroundColor: habit.color } : {}}
                         title={`${date}${completed ? ' ✓' : ''}`}
                       />

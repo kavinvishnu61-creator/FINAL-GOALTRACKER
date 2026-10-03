@@ -3,8 +3,14 @@ export type GoalStatus = 'planned' | 'active' | 'paused' | 'completed' | 'archiv
 export type TaskStatus = 'inbox' | 'todo' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
 export type ProjectStatus = 'not_started' | 'active' | 'paused' | 'completed' | 'archived';
 export type HabitFrequency = 'daily' | 'weekly' | 'custom';
-export type ProgressType = 'manual' | 'task_based' | 'milestone_based' | 'numeric' | 'habit_based';
+export type ProgressType = 'manual' | 'task_based' | 'milestone_based' | 'numeric' | 'habit_based' | 'streak';
 export type ThemeMode = 'light' | 'dark' | 'system';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
 
 export interface Goal {
   id: string;
@@ -22,6 +28,8 @@ export interface Goal {
   currentValue: number;
   unit: string;
   color: string;
+  optimizedTime?: string; // Time of day to work on this goal automatically (HH:mm)
+  optimizedEndTime?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,6 +133,7 @@ export interface CalendarEvent {
   taskId?: string;
   goalId?: string;
   color: string;
+  completed?: boolean;
 }
 
 export interface DailyReview {

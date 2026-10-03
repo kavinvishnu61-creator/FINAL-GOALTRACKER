@@ -19,11 +19,11 @@ export function CommandPalette() {
 
   const commands: Command[] = [
     { id: 'home', label: 'Go to Home', icon: Home, category: 'Navigation', action: () => { setCurrentPage('home'); setShowCommandPalette(false); } },
-    { id: 'today', label: 'Go to Today', icon: Zap, category: 'Navigation', action: () => { setCurrentPage('today'); setShowCommandPalette(false); } },
+    { id: 'today', label: 'Go to Today Plan', icon: Zap, category: 'Navigation', action: () => { setCurrentPage('today'); setShowCommandPalette(false); } },
+    { id: 'calendar', label: 'Go to Calendar', icon: Calendar, category: 'Navigation', action: () => { setCurrentPage('calendar'); setShowCommandPalette(false); } },
+    { id: 'focus', label: 'Go to Focus Timer', icon: Timer, category: 'Navigation', action: () => { setCurrentPage('focus'); setShowCommandPalette(false); } },
     { id: 'goals', label: 'Go to Goals', icon: Target, category: 'Navigation', action: () => { setCurrentPage('goals'); setShowCommandPalette(false); } },
     { id: 'habits', label: 'Go to Habits', icon: Flame, category: 'Navigation', action: () => { setCurrentPage('habits'); setShowCommandPalette(false); } },
-    { id: 'focus', label: 'Go to Focus', icon: Timer, category: 'Navigation', action: () => { setCurrentPage('focus'); setShowCommandPalette(false); } },
-    { id: 'calendar', label: 'Go to Calendar', icon: Calendar, category: 'Navigation', action: () => { setCurrentPage('calendar'); setShowCommandPalette(false); } },
     { id: 'analytics', label: 'Go to Analytics', icon: BarChart3, category: 'Navigation', action: () => { setCurrentPage('analytics'); setShowCommandPalette(false); } },
     { id: 'new-task', label: 'Create New Task', icon: Plus, category: 'Create', action: () => { addTask({ title: 'New Task', priority: 'P3' }); setCurrentPage('today'); setShowCommandPalette(false); } },
     { id: 'new-goal', label: 'Create New Goal', icon: Plus, category: 'Create', action: () => { setCurrentPage('goals'); setShowCommandPalette(false); } },

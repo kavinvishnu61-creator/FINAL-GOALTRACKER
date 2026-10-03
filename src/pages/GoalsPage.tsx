@@ -1,14 +1,25 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-import { format } from 'date-fns';
-import { Plus, Target, MoreHorizontal, Calendar, TrendingUp } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { Plus, Target, MoreHorizontal, Calendar, TrendingUp, Flame, CheckCircle2 } from 'lucide-react';
 import { GoalStatus, Priority } from '../types';
 
+function safeFormat(dateVal: any, formatStr: string, fallback = ''): string {
+  if (!dateVal) return fallback;
+  try {
+    const d = typeof dateVal === 'string' ? parseISO(dateVal) : new Date(dateVal);
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, formatStr);
+  } catch {
+    return fallback;
+  }
+}
+
 export function GoalsPage() {
-  const { goals, addGoal, updateGoal, deleteGoal, setSelectedGoalId, milestones, projects, tasks, getGoalProgress } = useStore();
+  const { goals, addGoal, updateGoal, deleteGoal, setSelectedGoalId, milestones, projects, tasks, getGoalProgress, getGoalStreak } = useStore();
   const [showCreate, setShowCreate] = useState(false);
   const [filter, setFilter] = useState<GoalStatus | 'all'>('all');
-  const [newGoal, setNewGoal] = useState({ title: '', description: '', category: 'General', priority: 'P2' as Priority, targetDate: '' });
+  const [newGoal, setNewGoal] = useState({ title: '', description: '', category: 'General', priority: 'P2' as Priority, startDate: '', targetDate: '', optimizedTime: '09:00', optimizedEndTime: '10:00' });
 
   const filteredGoals = filter === 'all' ? goals : goals.filter(g => g.status === filter);
 
@@ -18,7 +29,7 @@ export function GoalsPage() {
       ...newGoal,
       targetDate: newGoal.targetDate || format(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
     });
-    setNewGoal({ title: '', description: '', category: 'General', priority: 'P2', targetDate: '' });
+    setNewGoal({ title: '', description: '', category: 'General', priority: 'P2', startDate: '', targetDate: '', optimizedTime: '09:00', optimizedEndTime: '10:00' });
     setShowCreate(false);
   };
 
@@ -44,9 +55,8 @@ export function GoalsPage() {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-              filter === f ? 'bg-white dark:bg-[#252836] shadow-sm text-[#1f2937] dark:text-[#e5e7eb]' : 'text-[#6b7280] hover:text-[#4b5563]'
-            }`}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${filter === f ? 'bg-white dark:bg-[#252836] shadow-sm text-[#1f2937] dark:text-[#e5e7eb]' : 'text-[#6b7280] hover:text-[#4b5563]'
+              }`}
           >
             {f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
@@ -93,15 +103,45 @@ export function GoalsPage() {
               >
                 <option value="P1">P1 - Critical</option>
                 <option value="P2">P2 - High</option>
-                <option value="P3">P3 - Medium</option>
-                <option value="P4">P4 - Low</option>
               </select>
-              <input
-                type="date"
-                value={newGoal.targetDate}
-                onChange={(e) => setNewGoal({ ...newGoal, targetDate: e.target.value })}
-                className="px-3 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] bg-transparent text-sm outline-none"
-              />
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mt-2">
+              <div className="flex-1 w-full">
+                <label className="block text-xs text-[#6b7280] mb-1">From Date</label>
+                <input
+                  type="date"
+                  value={newGoal.startDate || format(new Date(), 'yyyy-MM-dd')}
+                  onChange={(e) => setNewGoal({ ...newGoal, startDate: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] bg-transparent text-sm outline-none"
+                />
+              </div>
+              <div className="flex-1 w-full">
+                <label className="block text-xs text-[#6b7280] mb-1">To Date</label>
+                <input
+                  type="date"
+                  value={newGoal.targetDate || format(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')}
+                  onChange={(e) => setNewGoal({ ...newGoal, targetDate: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] bg-transparent text-sm outline-none"
+                />
+              </div>
+              <div className="flex-1 w-full">
+                <label className="block text-xs text-[#6b7280] mb-1">From Time</label>
+                <input
+                  type="time"
+                  value={newGoal.optimizedTime || '09:00'}
+                  onChange={(e) => setNewGoal({ ...newGoal, optimizedTime: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] bg-transparent text-sm outline-none"
+                />
+              </div>
+              <div className="flex-1 w-full">
+                <label className="block text-xs text-[#6b7280] mb-1">To Time</label>
+                <input
+                  type="time"
+                  value={newGoal.optimizedEndTime || '10:00'}
+                  onChange={(e) => setNewGoal({ ...newGoal, optimizedEndTime: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] bg-transparent text-sm outline-none"
+                />
+              </div>
             </div>
             <div className="flex items-center gap-2 pt-2">
               <button onClick={handleCreate} className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium">Create Goal</button>
@@ -126,6 +166,7 @@ export function GoalsPage() {
             const goalTasks = tasks.filter(t => t.goalId === goal.id);
             const completedTasks = goalTasks.filter(t => t.status === 'completed').length;
             const progress = getGoalProgress(goal.id);
+            const streakInfo = getGoalStreak(goal.id);
 
             return (
               <button
@@ -138,16 +179,15 @@ export function GoalsPage() {
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: goal.color }} />
                     <h3 className="text-sm font-semibold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{goal.title}</h3>
                   </div>
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                    goal.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' :
-                    goal.status === 'planned' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400' :
-                    goal.status === 'completed' ? 'bg-[#f3f4f6] dark:bg-[#252836] text-[#6b7280]' :
-                    'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
-                  }`}>
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${goal.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' :
+                      goal.status === 'planned' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400' :
+                        goal.status === 'completed' ? 'bg-[#f3f4f6] dark:bg-[#252836] text-[#6b7280]' :
+                          'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                    }`}>
                     {goal.status}
                   </span>
                 </div>
-                
+
                 {goal.description && (
                   <p className="text-xs text-[#6b7280] dark:text-[#6b7280] mb-3 line-clamp-2">{goal.description}</p>
                 )}
@@ -167,15 +207,18 @@ export function GoalsPage() {
                 </div>
 
                 {/* Meta */}
-                <div className="flex items-center gap-4 text-[11px] text-[#9ca3af]">
-                  <span className="flex items-center gap-1">
-                    <Target className="w-3 h-3" />{goalMilestones.length} milestones
+                <div className="flex items-center gap-3 text-[11px] text-[#9ca3af]">
+                  <span className="flex items-center gap-1 text-orange-500 font-semibold">
+                    <Flame className="w-3 h-3" />{streakInfo.currentStreak}d streak
+                  </span>
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                    <CheckCircle2 className="w-3 h-3" />{streakInfo.completedDays}d done
                   </span>
                   <span className="flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" />{completedTasks}/{goalTasks.length} tasks
+                    <Target className="w-3 h-3" />{completedTasks}/{goalTasks.length} tasks
                   </span>
                   <span className="flex items-center gap-1 ml-auto">
-                    <Calendar className="w-3 h-3" />{format(new Date(goal.targetDate), 'MMM d')}
+                    <Calendar className="w-3 h-3" />{safeFormat(goal.targetDate, 'MMM d', 'No target')}
                   </span>
                 </div>
               </button>

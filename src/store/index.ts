@@ -4,11 +4,26 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   Goal, Milestone, Project, Task, Habit, HabitCompletion,
   FocusSession, CalendarEvent, DailyReview, WeeklyReview,
-  ActivityLog, ViewPage, ThemeMode, GoalStatus, TaskStatus, Priority
+  ActivityLog, ViewPage, ThemeMode, GoalStatus, TaskStatus, Priority, User
 } from '../types';
-import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, parseISO, differenceInDays } from 'date-fns';
+import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, parseISO, differenceInDays, isValid } from 'date-fns';
+
+const safeFormat = (date: Date | number | string, formatStr: string): string => {
+  try {
+    const d = typeof date === 'string' ? parseISO(date) : new Date(date);
+    if (!isValid(d)) return '';
+    return format(d, formatStr);
+  } catch (e) {
+    return '';
+  }
+};
 
 interface AppState {
+  // Auth
+  user: User | null;
+  login: (name: string, email: string) => void;
+  logout: () => void;
+
   // Navigation
   currentPage: ViewPage;
   setCurrentPage: (page: ViewPage) => void;
@@ -73,6 +88,8 @@ interface AppState {
   // Calendar Actions
   addCalendarEvent: (event: Partial<CalendarEvent>) => void;
   deleteCalendarEvent: (id: string) => void;
+  toggleCalendarEventComplete: (id: string) => void;
+  cleanupOrphanedEvents: () => void;
 
   // Review Actions
   addDailyReview: (review: Partial<DailyReview>) => void;
@@ -80,6 +97,8 @@ interface AppState {
 
   // Computed helpers
   getGoalProgress: (goalId: string) => number;
+  getGoalStreak: (goalId: string) => { currentStreak: number; longestStreak: number; completedDays: number; totalDays: number };
+  toggleGoalDayComplete: (goalId: string, date: string) => void;
   getTodayTasks: () => Task[];
   getTodayHabits: () => { habit: Habit; completed: boolean }[];
   getCurrentStreak: () => number;
@@ -93,128 +112,20 @@ interface AppState {
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6'];
 
-function seedData() {
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-  const twoDaysAgo = format(subDays(new Date(), 2), 'yyyy-MM-dd');
-  const threeDaysAgo = format(subDays(new Date(), 3), 'yyyy-MM-dd');
-  
-  return {
-    goals: [
-      {
-        id: 'goal-1',
-        title: 'Become an AI Engineer',
-        description: 'Master machine learning, deep learning, and build production AI systems',
-        reason: 'AI is the future and I want to be at the forefront',
-        category: 'Career',
-        status: 'active' as GoalStatus,
-        priority: 'P1' as Priority,
-        startDate: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
-        targetDate: format(new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-        progress: 35,
-        progressType: 'task_based' as const,
-        targetValue: 100,
-        currentValue: 35,
-        unit: '%',
-        color: '#6366f1',
-        createdAt: format(subDays(new Date(), 30), 'yyyy-MM-dd') + 'T10:00:00.000Z',
-        updatedAt: today + 'T08:00:00.000Z',
-      },
-      {
-        id: 'goal-2',
-        title: 'Read 24 Books This Year',
-        description: 'Expand knowledge across technology, philosophy, and personal development',
-        reason: 'Continuous learning is essential for growth',
-        category: 'Learning',
-        status: 'active' as GoalStatus,
-        priority: 'P2' as Priority,
-        startDate: '2025-01-01',
-        targetDate: '2025-12-31',
-        progress: 42,
-        progressType: 'numeric' as const,
-        targetValue: 24,
-        currentValue: 10,
-        unit: 'books',
-        color: '#22c55e',
-        createdAt: '2025-01-01T10:00:00.000Z',
-        updatedAt: today + 'T08:00:00.000Z',
-      },
-      {
-        id: 'goal-3',
-        title: 'Run a Half Marathon',
-        description: 'Build endurance and complete a 21km race',
-        reason: 'Physical health and mental resilience',
-        category: 'Health',
-        status: 'active' as GoalStatus,
-        priority: 'P2' as Priority,
-        startDate: format(subDays(new Date(), 14), 'yyyy-MM-dd'),
-        targetDate: format(new Date(Date.now() + 120 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-        progress: 25,
-        progressType: 'manual' as const,
-        targetValue: 100,
-        currentValue: 25,
-        unit: '%',
-        color: '#f97316',
-        createdAt: format(subDays(new Date(), 14), 'yyyy-MM-dd') + 'T10:00:00.000Z',
-        updatedAt: today + 'T08:00:00.000Z',
-      },
-    ],
-    milestones: [
-      { id: 'ms-1', goalId: 'goal-1', title: 'Complete ML Foundations', description: 'Finish core ML courses', targetDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), status: 'in_progress' as const, progress: 60, order: 0, createdAt: format(subDays(new Date(), 30), 'yyyy-MM-dd') + 'T10:00:00.000Z' },
-      { id: 'ms-2', goalId: 'goal-1', title: 'Build First RAG System', description: 'Create a retrieval-augmented generation pipeline', targetDate: format(new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), status: 'pending' as const, progress: 0, order: 1, createdAt: format(subDays(new Date(), 30), 'yyyy-MM-dd') + 'T10:00:00.000Z' },
-      { id: 'ms-3', goalId: 'goal-1', title: 'Deploy AI Portfolio', description: 'Ship 3 production-ready AI projects', targetDate: format(new Date(Date.now() + 120 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), status: 'pending' as const, progress: 0, order: 2, createdAt: format(subDays(new Date(), 30), 'yyyy-MM-dd') + 'T10:00:00.000Z' },
-    ],
-    projects: [
-      { id: 'proj-1', goalId: 'goal-1', milestoneId: 'ms-1', title: 'ML Course Completion', description: 'Complete Andrew Ng ML specialization', status: 'active' as const, priority: 'P1' as Priority, startDate: format(subDays(new Date(), 20), 'yyyy-MM-dd'), dueDate: format(new Date(Date.now() + 20 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), progress: 60, estimatedEffort: 40, actualEffort: 24, createdAt: format(subDays(new Date(), 20), 'yyyy-MM-dd') + 'T10:00:00.000Z' },
-      { id: 'proj-2', goalId: 'goal-1', milestoneId: 'ms-2', title: 'RAG Pipeline Project', description: 'Build end-to-end RAG system with LangChain', status: 'active' as const, priority: 'P1' as Priority, startDate: format(subDays(new Date(), 7), 'yyyy-MM-dd'), dueDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), progress: 20, estimatedEffort: 60, actualEffort: 12, createdAt: format(subDays(new Date(), 7), 'yyyy-MM-dd') + 'T10:00:00.000Z' },
-    ],
-    tasks: [
-      { id: 'task-1', title: 'Complete RAG module - Document Loader', description: '', status: 'todo' as TaskStatus, priority: 'P1' as Priority, goalId: 'goal-1', projectId: 'proj-2', tags: ['AI', 'RAG'], dueDate: today, scheduledDate: today, estimatedDuration: 90, order: 0, createdAt: yesterday + 'T10:00:00.000Z', updatedAt: today + 'T08:00:00.000Z' },
-      { id: 'task-2', title: 'Study transformer architecture notes', description: '', status: 'todo' as TaskStatus, priority: 'P2' as Priority, goalId: 'goal-1', projectId: 'proj-1', tags: ['ML', 'Study'], dueDate: today, scheduledDate: today, estimatedDuration: 60, order: 1, createdAt: yesterday + 'T10:00:00.000Z', updatedAt: today + 'T08:00:00.000Z' },
-      { id: 'task-3', title: 'Read chapter 5 of AI Engineering book', description: '', status: 'todo' as TaskStatus, priority: 'P3' as Priority, goalId: 'goal-2', tags: ['Reading'], scheduledDate: today, estimatedDuration: 45, order: 2, createdAt: yesterday + 'T10:00:00.000Z', updatedAt: today + 'T08:00:00.000Z' },
-      { id: 'task-4', title: 'Morning run - 5km', description: '', status: 'completed' as TaskStatus, priority: 'P2' as Priority, goalId: 'goal-3', tags: ['Exercise'], scheduledDate: today, completedAt: today + 'T07:30:00.000Z', estimatedDuration: 30, actualDuration: 28, order: 3, createdAt: yesterday + 'T10:00:00.000Z', updatedAt: today + 'T07:30:00.000Z' },
-      { id: 'task-5', title: 'Review LangChain documentation', description: '', status: 'completed' as TaskStatus, priority: 'P2' as Priority, goalId: 'goal-1', projectId: 'proj-2', tags: ['AI'], scheduledDate: yesterday, completedAt: yesterday + 'T15:00:00.000Z', estimatedDuration: 45, actualDuration: 50, order: 4, createdAt: format(subDays(new Date(), 3), 'yyyy-MM-dd') + 'T10:00:00.000Z', updatedAt: yesterday + 'T15:00:00.000Z' },
-      { id: 'task-6', title: 'Set up vector database', description: '', status: 'completed' as TaskStatus, priority: 'P1' as Priority, goalId: 'goal-1', projectId: 'proj-2', tags: ['AI', 'Infra'], scheduledDate: twoDaysAgo, completedAt: twoDaysAgo + 'T14:00:00.000Z', estimatedDuration: 60, actualDuration: 75, order: 5, createdAt: format(subDays(new Date(), 5), 'yyyy-MM-dd') + 'T10:00:00.000Z', updatedAt: twoDaysAgo + 'T14:00:00.000Z' },
-      { id: 'task-7', title: 'Write blog post about learning journey', description: '', status: 'todo' as TaskStatus, priority: 'P3' as Priority, tags: ['Writing'], dueDate: format(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), estimatedDuration: 120, order: 6, createdAt: today + 'T08:00:00.000Z', updatedAt: today + 'T08:00:00.000Z' },
-    ],
-    habits: [
-      { id: 'habit-1', name: 'Morning Exercise', description: '30 min workout or run', frequency: 'daily' as const, target: 1, unit: 'session', schedule: [1, 2, 3, 4, 5], goalId: 'goal-3', currentStreak: 5, longestStreak: 12, color: '#f97316', createdAt: format(subDays(new Date(), 30), 'yyyy-MM-dd') + 'T10:00:00.000Z' },
-      { id: 'habit-2', name: 'Read 30 Minutes', description: 'Read a non-fiction book', frequency: 'daily' as const, target: 1, unit: 'session', schedule: [0, 1, 2, 3, 4, 5, 6], goalId: 'goal-2', currentStreak: 8, longestStreak: 21, color: '#22c55e', createdAt: format(subDays(new Date(), 30), 'yyyy-MM-dd') + 'T10:00:00.000Z' },
-      { id: 'habit-3', name: 'Study AI/ML', description: 'Minimum 1 hour of focused study', frequency: 'daily' as const, target: 1, unit: 'hour', schedule: [1, 2, 3, 4, 5], goalId: 'goal-1', currentStreak: 3, longestStreak: 15, color: '#6366f1', createdAt: format(subDays(new Date(), 30), 'yyyy-MM-dd') + 'T10:00:00.000Z' },
-      { id: 'habit-4', name: 'Meditate', description: '10 minutes mindfulness', frequency: 'daily' as const, target: 1, unit: 'session', schedule: [0, 1, 2, 3, 4, 5, 6], currentStreak: 2, longestStreak: 30, color: '#8b5cf6', createdAt: format(subDays(new Date(), 60), 'yyyy-MM-dd') + 'T10:00:00.000Z' },
-    ],
-    habitCompletions: [
-      // Generate completions for last 7 days
-      ...[0, 1, 2, 3, 4, 5, 6].flatMap(i => {
-        const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
-        const completions = [];
-        if (i < 5) completions.push({ id: `hc-ex-${i}`, habitId: 'habit-1', date, value: 1, completed: true, timestamp: date + 'T07:00:00.000Z' });
-        if (i < 8) completions.push({ id: `hc-read-${i}`, habitId: 'habit-2', date, value: 1, completed: true, timestamp: date + 'T21:00:00.000Z' });
-        if (i < 3 && new Date(date).getDay() !== 0 && new Date(date).getDay() !== 6) completions.push({ id: `hc-ai-${i}`, habitId: 'habit-3', date, value: 1, completed: true, timestamp: date + 'T14:00:00.000Z' });
-        if (i < 2) completions.push({ id: `hc-med-${i}`, habitId: 'habit-4', date, value: 1, completed: true, timestamp: date + 'T06:30:00.000Z' });
-        return completions;
-      }),
-    ],
-    focusSessions: [
-      { id: 'fs-1', startTime: today + 'T09:00:00.000Z', endTime: today + 'T09:50:00.000Z', duration: 50, actualDuration: 48, taskId: 'task-5', goalId: 'goal-1', status: 'completed' as const, type: 'pomodoro' as const, createdAt: today + 'T09:00:00.000Z' },
-      { id: 'fs-2', startTime: today + 'T10:00:00.000Z', endTime: today + 'T10:50:00.000Z', duration: 50, actualDuration: 50, taskId: 'task-6', goalId: 'goal-1', status: 'completed' as const, type: 'pomodoro' as const, createdAt: today + 'T10:00:00.000Z' },
-      { id: 'fs-3', startTime: yesterday + 'T09:00:00.000Z', endTime: yesterday + 'T09:50:00.000Z', duration: 50, actualDuration: 45, goalId: 'goal-1', status: 'completed' as const, type: 'pomodoro' as const, createdAt: yesterday + 'T09:00:00.000Z' },
-      { id: 'fs-4', startTime: yesterday + 'T14:00:00.000Z', endTime: yesterday + 'T14:50:00.000Z', duration: 50, actualDuration: 50, goalId: 'goal-1', status: 'completed' as const, type: 'pomodoro' as const, createdAt: yesterday + 'T14:00:00.000Z' },
-      { id: 'fs-5', startTime: twoDaysAgo + 'T10:00:00.000Z', endTime: twoDaysAgo + 'T11:30:00.000Z', duration: 90, actualDuration: 85, goalId: 'goal-1', status: 'completed' as const, type: 'custom' as const, createdAt: twoDaysAgo + 'T10:00:00.000Z' },
-      { id: 'fs-6', startTime: threeDaysAgo + 'T09:00:00.000Z', endTime: threeDaysAgo + 'T09:50:00.000Z', duration: 50, actualDuration: 50, goalId: 'goal-1', status: 'completed' as const, type: 'pomodoro' as const, createdAt: threeDaysAgo + 'T09:00:00.000Z' },
-    ],
-    calendarEvents: [
-      { id: 'ce-1', title: 'Deep Work - AI Study', date: today, startTime: '09:00', endTime: '11:00', type: 'focus' as const, goalId: 'goal-1', color: '#6366f1' },
-      { id: 'ce-2', title: 'Team Standup', date: today, startTime: '11:00', endTime: '11:30', type: 'event' as const, color: '#9ca3af' },
-      { id: 'ce-3', title: 'Lunch Break', date: today, startTime: '12:00', endTime: '13:00', type: 'event' as const, color: '#22c55e' },
-      { id: 'ce-4', title: 'Project Review', date: today, startTime: '14:00', endTime: '15:00', type: 'event' as const, color: '#f97316' },
-    ],
-  };
-}
+
 
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
+      // Auth
+      user: null,
+      login: (name, email) => {
+        set({ user: { id: uuidv4(), name, email } });
+      },
+      logout: () => {
+        set({ user: null });
+      },
+
       // Navigation
       currentPage: 'home',
       setCurrentPage: (page) => set({ currentPage: page }),
@@ -248,6 +159,10 @@ export const useStore = create<AppState>()(
       addGoal: (goalData) => {
         const id = uuidv4();
         const now = new Date().toISOString();
+        const startDate = goalData.startDate || safeFormat(new Date(), 'yyyy-MM-dd');
+        const targetDate = goalData.targetDate || safeFormat(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
+        const optimizedTime = goalData.optimizedTime || '09:00';
+
         const goal: Goal = {
           id,
           title: goalData.title || 'New Goal',
@@ -256,8 +171,10 @@ export const useStore = create<AppState>()(
           category: goalData.category || 'General',
           status: goalData.status || 'active',
           priority: goalData.priority || 'P2',
-          startDate: goalData.startDate || format(new Date(), 'yyyy-MM-dd'),
-          targetDate: goalData.targetDate || format(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+          startDate,
+          targetDate,
+          optimizedTime,
+          optimizedEndTime: goalData.optimizedEndTime || '10:00',
           progress: goalData.progress || 0,
           progressType: goalData.progressType || 'manual',
           targetValue: goalData.targetValue || 100,
@@ -267,7 +184,36 @@ export const useStore = create<AppState>()(
           createdAt: now,
           updatedAt: now,
         };
-        set((state) => ({ goals: [...state.goals, goal] }));
+
+        // Generate calendar events for every day between start and target
+        const start = parseISO(startDate);
+        const end = parseISO(targetDate);
+        let days: Date[] = [];
+        if (start <= end) {
+          try {
+            days = eachDayOfInterval({ start, end });
+          } catch (e) {
+            console.error('Invalid dates for interval', e);
+          }
+        }
+        
+        const newEvents: CalendarEvent[] = days.map(d => ({
+          id: uuidv4(),
+          title: `Goal: ${goal.title}`,
+          date: safeFormat(d, 'yyyy-MM-dd'),
+          startTime: optimizedTime,
+          endTime: goal.optimizedEndTime || safeFormat(new Date(new Date(`2000-01-01T${optimizedTime}`).getTime() + 60*60*1000), 'HH:mm'),
+          type: 'event',
+          goalId: goal.id,
+          color: goal.color,
+          completed: false,
+        }));
+
+        set((state) => ({ 
+          goals: [...state.goals, goal],
+          calendarEvents: [...state.calendarEvents, ...newEvents]
+        }));
+        
         get().logActivity('create', id, 'goal', `Created goal: ${goal.title}`);
         return id;
       },
@@ -281,11 +227,19 @@ export const useStore = create<AppState>()(
       },
 
       deleteGoal: (id) => {
+        const goalToDelete = get().goals.find((g) => g.id === id);
+        const goalTitle = goalToDelete?.title.trim().toLowerCase();
+
         set((state) => ({
           goals: state.goals.filter((g) => g.id !== id),
           milestones: state.milestones.filter((m) => m.goalId !== id),
           projects: state.projects.filter((p) => p.goalId !== id),
           tasks: state.tasks.map((t) => t.goalId === id ? { ...t, goalId: undefined } : t),
+          calendarEvents: state.calendarEvents.filter((e) => {
+            if (e.goalId === id) return false;
+            if (goalTitle && e.title.trim().toLowerCase() === `goal: ${goalTitle}`) return false;
+            return true;
+          }),
         }));
       },
 
@@ -296,7 +250,7 @@ export const useStore = create<AppState>()(
           goalId: data.goalId || '',
           title: data.title || 'New Milestone',
           description: data.description || '',
-          targetDate: data.targetDate || format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+          targetDate: data.targetDate || safeFormat(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
           status: data.status || 'pending',
           progress: data.progress || 0,
           order: data.order || get().milestones.filter(m => m.goalId === data.goalId).length,
@@ -325,8 +279,8 @@ export const useStore = create<AppState>()(
           description: data.description || '',
           status: data.status || 'not_started',
           priority: data.priority || 'P2',
-          startDate: data.startDate || format(new Date(), 'yyyy-MM-dd'),
-          dueDate: data.dueDate || format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+          startDate: data.startDate || safeFormat(new Date(), 'yyyy-MM-dd'),
+          dueDate: data.dueDate || safeFormat(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
           progress: data.progress || 0,
           estimatedEffort: data.estimatedEffort || 0,
           actualEffort: data.actualEffort || 0,
@@ -394,11 +348,11 @@ export const useStore = create<AppState>()(
           tasks: state.tasks.map((t) =>
             t.id === id
               ? {
-                  ...t,
-                  status: isCompleted ? 'todo' as TaskStatus : 'completed' as TaskStatus,
-                  completedAt: isCompleted ? undefined : new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                }
+                ...t,
+                status: isCompleted ? 'todo' as TaskStatus : 'completed' as TaskStatus,
+                completedAt: isCompleted ? undefined : new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              }
               : t
           ),
         }));
@@ -462,21 +416,21 @@ export const useStore = create<AppState>()(
           const completions = get().habitCompletions
             .filter(c => c.habitId === habitId)
             .sort((a, b) => b.date.localeCompare(a.date));
-          
+
           let streak = 0;
-          let today = format(new Date(), 'yyyy-MM-dd');
+          let today = safeFormat(new Date(), 'yyyy-MM-dd');
           let checkDate = parseISO(today);
-          
+
           for (let i = 0; i < 365; i++) {
-            const dateStr = format(checkDate, 'yyyy-MM-dd');
+            const dateStr = safeFormat(checkDate, 'yyyy-MM-dd');
             const dayOfWeek = checkDate.getDay();
             const isScheduled = habit.schedule.includes(dayOfWeek);
-            
+
             if (!isScheduled) {
               checkDate = subDays(checkDate, 1);
               continue;
             }
-            
+
             const completed = completions.some(c => c.date === dateStr);
             if (completed) {
               streak++;
@@ -489,7 +443,7 @@ export const useStore = create<AppState>()(
             }
             checkDate = subDays(checkDate, 1);
           }
-          
+
           const longest = Math.max(streak, habit.longestStreak);
           get().updateHabit(habitId, { currentStreak: streak, longestStreak: longest });
         }
@@ -541,7 +495,7 @@ export const useStore = create<AppState>()(
         const event: CalendarEvent = {
           id: uuidv4(),
           title: data.title || 'Event',
-          date: data.date || format(new Date(), 'yyyy-MM-dd'),
+          date: data.date || safeFormat(new Date(), 'yyyy-MM-dd'),
           startTime: data.startTime || '09:00',
           endTime: data.endTime || '10:00',
           type: data.type || 'event',
@@ -556,11 +510,79 @@ export const useStore = create<AppState>()(
         set((state) => ({ calendarEvents: state.calendarEvents.filter(e => e.id !== id) }));
       },
 
+      toggleCalendarEventComplete: (id) => {
+        set((state) => ({
+          calendarEvents: state.calendarEvents.map(e =>
+            e.id === id ? { ...e, completed: !e.completed } : e
+          )
+        }));
+      },
+
+      cleanupOrphanedEvents: () => {
+        set((state) => {
+          const validGoalIds = new Set(state.goals.map((g) => g.id));
+          const validGoalTitles = new Set(state.goals.map((g) => g.title.trim().toLowerCase()));
+
+          let calendarChanged = false;
+          const cleanCalendar = state.calendarEvents.filter((e) => {
+            if (e.goalId) {
+              const valid = validGoalIds.has(e.goalId);
+              if (!valid) calendarChanged = true;
+              return valid;
+            }
+            const lowerTitle = e.title.trim().toLowerCase();
+            if (lowerTitle.startsWith('goal:')) {
+              const goalName = lowerTitle.replace(/^goal:\s*/, '').trim();
+              const valid = validGoalTitles.has(goalName);
+              if (!valid) calendarChanged = true;
+              return valid;
+            }
+            return true;
+          }).map((e) => {
+            if (!e.goalId && e.title.trim().toLowerCase().startsWith('goal:')) {
+              const goalName = e.title.trim().toLowerCase().replace(/^goal:\s*/, '').trim();
+              const matched = state.goals.find(g => g.title.trim().toLowerCase() === goalName);
+              if (matched) {
+                calendarChanged = true;
+                return { ...e, goalId: matched.id };
+              }
+            }
+            return e;
+          });
+
+          let tasksChanged = false;
+          const cleanTasks = state.tasks.map((t) => {
+            if (t.goalId && !validGoalIds.has(t.goalId)) {
+              tasksChanged = true;
+              return { ...t, goalId: undefined };
+            }
+            return t;
+          });
+
+          const cleanMilestones = state.milestones.filter((m) => !m.goalId || validGoalIds.has(m.goalId));
+          const milestonesChanged = cleanMilestones.length !== state.milestones.length;
+
+          const cleanProjects = state.projects.filter((p) => !p.goalId || validGoalIds.has(p.goalId));
+          const projectsChanged = cleanProjects.length !== state.projects.length;
+
+          if (!calendarChanged && !tasksChanged && !milestonesChanged && !projectsChanged) {
+            return {};
+          }
+
+          return {
+            calendarEvents: cleanCalendar,
+            tasks: cleanTasks,
+            milestones: cleanMilestones,
+            projects: cleanProjects,
+          };
+        });
+      },
+
       // Review Actions
       addDailyReview: (data) => {
         const review: DailyReview = {
           id: uuidv4(),
-          date: data.date || format(new Date(), 'yyyy-MM-dd'),
+          date: data.date || safeFormat(new Date(), 'yyyy-MM-dd'),
           accomplishments: data.accomplishments || '',
           blockers: data.blockers || '',
           tomorrowFocus: data.tomorrowFocus || '',
@@ -591,10 +613,23 @@ export const useStore = create<AppState>()(
       getGoalProgress: (goalId) => {
         const goal = get().goals.find(g => g.id === goalId);
         if (!goal) return 0;
-        
+
         switch (goal.progressType) {
-          case 'manual':
-            return goal.progress;
+          case 'manual': {
+            if (goal.progress > 0) return goal.progress;
+            const events = get().calendarEvents.filter(e => e.goalId === goalId);
+            if (events.length > 0) {
+              const completed = events.filter(e => e.completed).length;
+              return Math.min(100, Math.round((completed / events.length) * 100));
+            }
+            return 0;
+          }
+          case 'streak': {
+            const events = get().calendarEvents.filter(e => e.goalId === goalId);
+            if (events.length === 0) return 0;
+            const completed = events.filter(e => e.completed).length;
+            return Math.min(100, Math.round((completed / events.length) * 100));
+          }
           case 'task_based': {
             const tasks = get().tasks.filter(t => t.goalId === goalId);
             if (tasks.length === 0) return 0;
@@ -616,15 +651,91 @@ export const useStore = create<AppState>()(
         }
       },
 
+      toggleGoalDayComplete: (goalId: string, date: string) => {
+        const existingEvent = get().calendarEvents.find(e => e.goalId === goalId && e.date === date);
+        if (existingEvent) {
+          get().toggleCalendarEventComplete(existingEvent.id);
+        } else {
+          const goal = get().goals.find(g => g.id === goalId);
+          if (!goal) return;
+          const newEvent: CalendarEvent = {
+            id: uuidv4(),
+            title: `Goal: ${goal.title}`,
+            date,
+            startTime: goal.optimizedTime || '09:00',
+            endTime: goal.optimizedEndTime || '10:00',
+            type: 'event',
+            goalId: goal.id,
+            color: goal.color,
+            completed: true,
+          };
+          set(state => ({ calendarEvents: [...state.calendarEvents, newEvent] }));
+        }
+      },
+
+      getGoalStreak: (goalId: string) => {
+        const goal = get().goals.find(g => g.id === goalId);
+        if (!goal) return { currentStreak: 0, longestStreak: 0, completedDays: 0, totalDays: 0 };
+
+        const events = get().calendarEvents.filter(e => e.goalId === goalId);
+        const completedDates = new Set(events.filter(e => e.completed).map(e => e.date));
+
+        const completedDays = completedDates.size;
+        const totalDays = events.length || 1;
+
+        const today = new Date();
+        const todayStr = safeFormat(today, 'yyyy-MM-dd');
+        let currentStreak = 0;
+
+        let startIndex = 0;
+        if (!completedDates.has(todayStr)) {
+          startIndex = 1;
+        }
+
+        for (let i = startIndex; i < 365; i++) {
+          const dStr = safeFormat(subDays(today, i), 'yyyy-MM-dd');
+          if (goal.startDate && dStr < goal.startDate) break;
+          if (completedDates.has(dStr)) {
+            currentStreak++;
+          } else {
+            break;
+          }
+        }
+
+        const sortedDates = Array.from(completedDates).sort();
+        let longestStreak = 0;
+        let tempStreak = 0;
+        for (let i = 0; i < sortedDates.length; i++) {
+          if (i === 0) {
+            tempStreak = 1;
+          } else {
+            const diff = differenceInDays(parseISO(sortedDates[i]), parseISO(sortedDates[i - 1]));
+            if (diff === 1) {
+              tempStreak++;
+            } else if (diff > 1) {
+              tempStreak = 1;
+            }
+          }
+          if (tempStreak > longestStreak) longestStreak = tempStreak;
+        }
+
+        return {
+          currentStreak,
+          longestStreak,
+          completedDays,
+          totalDays,
+        };
+      },
+
       getTodayTasks: () => {
-        const today = format(new Date(), 'yyyy-MM-dd');
+        const today = safeFormat(new Date(), 'yyyy-MM-dd');
         return get().tasks.filter(t =>
           (t.scheduledDate === today || t.dueDate === today) && t.status !== 'completed' && t.status !== 'cancelled'
         );
       },
 
       getTodayHabits: () => {
-        const today = format(new Date(), 'yyyy-MM-dd');
+        const today = safeFormat(new Date(), 'yyyy-MM-dd');
         const dayOfWeek = new Date().getDay();
         return get().habits
           .filter(h => h.schedule.includes(dayOfWeek))
@@ -637,16 +748,17 @@ export const useStore = create<AppState>()(
       getCurrentStreak: () => {
         const completions = get().habitCompletions;
         if (completions.length === 0) return 0;
-        
+
         let streak = 0;
         const today = new Date();
-        
+
         for (let i = 0; i < 365; i++) {
-          const date = format(subDays(today, i), 'yyyy-MM-dd');
+          const date = safeFormat(subDays(today, i), 'yyyy-MM-dd');
           const hasActivity = completions.some(c => c.date === date) ||
-            get().tasks.some(t => t.completedAt && format(parseISO(t.completedAt), 'yyyy-MM-dd') === date) ||
-            get().focusSessions.some(s => s.status === 'completed' && s.endTime && format(parseISO(s.endTime), 'yyyy-MM-dd') === date);
-          
+            get().tasks.some(t => t.completedAt && safeFormat(parseISO(t.completedAt), 'yyyy-MM-dd') === date) ||
+            get().focusSessions.some(s => s.status === 'completed' && s.endTime && safeFormat(parseISO(s.endTime), 'yyyy-MM-dd') === date) ||
+            get().calendarEvents.some(e => e.completed && e.date === date);
+
           if (hasActivity) {
             streak++;
           } else if (i === 0) {
@@ -661,15 +773,15 @@ export const useStore = create<AppState>()(
       getLongestStreak: () => {
         const allDates = new Set<string>();
         get().habitCompletions.forEach(c => allDates.add(c.date));
-        get().tasks.forEach(t => { if (t.completedAt) allDates.add(format(parseISO(t.completedAt), 'yyyy-MM-dd')); });
-        get().focusSessions.forEach(s => { if (s.endTime) allDates.add(format(parseISO(s.endTime), 'yyyy-MM-dd')); });
-        
+        get().tasks.forEach(t => { if (t.completedAt) allDates.add(safeFormat(parseISO(t.completedAt), 'yyyy-MM-dd')); });
+        get().focusSessions.forEach(s => { if (s.endTime) allDates.add(safeFormat(parseISO(s.endTime), 'yyyy-MM-dd')); });
+
         if (allDates.size === 0) return 0;
-        
+
         const sorted = Array.from(allDates).sort();
         let longest = 1;
         let current = 1;
-        
+
         for (let i = 1; i < sorted.length; i++) {
           const diff = differenceInDays(parseISO(sorted[i]), parseISO(sorted[i - 1]));
           if (diff === 1) {
@@ -685,24 +797,24 @@ export const useStore = create<AppState>()(
       getStreakData: () => {
         const today = new Date();
         const days: { date: string; status: 'completed' | 'partial' | 'missed' | 'future' | 'rest' }[] = [];
-        
+
         for (let i = 29; i >= 0; i--) {
           const date = subDays(today, i);
-          const dateStr = format(date, 'yyyy-MM-dd');
-          
+          const dateStr = safeFormat(date, 'yyyy-MM-dd');
+
           if (i < 0) {
             days.push({ date: dateStr, status: 'future' });
             continue;
           }
-          
+
           const completions = get().habitCompletions.filter(c => c.date === dateStr);
           const habitsScheduled = get().habits.filter(h => h.schedule.includes(date.getDay()));
-          const tasksCompleted = get().tasks.filter(t => t.completedAt && format(parseISO(t.completedAt), 'yyyy-MM-dd') === dateStr);
-          const focusSessions = get().focusSessions.filter(s => s.status === 'completed' && s.endTime && format(parseISO(s.endTime), 'yyyy-MM-dd') === dateStr);
-          
+          const tasksCompleted = get().tasks.filter(t => t.completedAt && safeFormat(parseISO(t.completedAt), 'yyyy-MM-dd') === dateStr);
+          const focusSessions = get().focusSessions.filter(s => s.status === 'completed' && s.endTime && safeFormat(parseISO(s.endTime), 'yyyy-MM-dd') === dateStr);
+
           const totalActivities = completions.length + tasksCompleted.length + focusSessions.length;
           const scheduledTotal = habitsScheduled.length;
-          
+
           if (totalActivities === 0 && scheduledTotal === 0) {
             days.push({ date: dateStr, status: 'rest' });
           } else if (scheduledTotal > 0 && totalActivities >= scheduledTotal) {
@@ -717,9 +829,9 @@ export const useStore = create<AppState>()(
       },
 
       getFocusToday: () => {
-        const today = format(new Date(), 'yyyy-MM-dd');
+        const today = safeFormat(new Date(), 'yyyy-MM-dd');
         return get().focusSessions
-          .filter(s => s.status === 'completed' && s.endTime && format(parseISO(s.endTime), 'yyyy-MM-dd') === today)
+          .filter(s => s.status === 'completed' && s.endTime && safeFormat(parseISO(s.endTime), 'yyyy-MM-dd') === today)
           .reduce((sum, s) => sum + s.actualDuration, 0);
       },
 
@@ -733,10 +845,10 @@ export const useStore = create<AppState>()(
         const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
         const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
         const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
-        const dayStrs = days.map(d => format(d, 'yyyy-MM-dd'));
-        
+        const dayStrs = days.map(d => safeFormat(d, 'yyyy-MM-dd'));
+
         return get().tasks.filter(t =>
-          t.status === 'completed' && t.completedAt && dayStrs.includes(format(parseISO(t.completedAt), 'yyyy-MM-dd'))
+          t.status === 'completed' && t.completedAt && dayStrs.includes(safeFormat(parseISO(t.completedAt), 'yyyy-MM-dd'))
         ).length;
       },
 
@@ -754,26 +866,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'goal-execution-system',
-      version: 1,
-      merge: (persistedState, currentState) => {
-        const state = persistedState as Partial<AppState> | undefined;
-        // If no persisted data, use seed data
-        if (!state || (!state.goals?.length && !state.tasks?.length)) {
-          const seed = seedData();
-          return {
-            ...currentState,
-            goals: seed.goals,
-            milestones: seed.milestones,
-            projects: seed.projects,
-            tasks: seed.tasks,
-            habits: seed.habits,
-            habitCompletions: seed.habitCompletions,
-            focusSessions: seed.focusSessions,
-            calendarEvents: seed.calendarEvents,
-          } as any;
-        }
-        return { ...currentState, ...state } as any;
-      },
+      version: 2,
     }
   )
 );

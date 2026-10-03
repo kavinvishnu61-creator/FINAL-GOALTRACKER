@@ -7,11 +7,11 @@ import {
 
 const navItems: { id: ViewPage; label: string; icon: any }[] = [
   { id: 'home', label: 'Home', icon: Home },
-  { id: 'today', label: 'Today', icon: Zap },
+  { id: 'today', label: 'Today Plan', icon: Zap },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
+  { id: 'focus', label: 'Focus Timer', icon: Timer },
   { id: 'goals', label: 'Goals', icon: Target },
   { id: 'habits', label: 'Habits', icon: Flame },
-  { id: 'focus', label: 'Focus', icon: Timer },
-  { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
@@ -70,8 +70,8 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Theme Toggle */}
-      <div className="px-3 pb-4">
+      {/* Theme Toggle & Logout */}
+      <div className="px-3 pb-4 space-y-2">
         <div className="flex items-center gap-1 p-1 rounded-lg bg-[#f3f4f6] dark:bg-[#1a1d2e]">
           {(['light', 'dark', 'system'] as const).map((t) => {
             const Icon = t === 'light' ? Sun : t === 'dark' ? Moon : Monitor;
@@ -90,6 +90,12 @@ export function Sidebar() {
             );
           })}
         </div>
+        <button
+          onClick={() => useStore.getState().logout()}
+          className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+        >
+          Log Out
+        </button>
       </div>
     </aside>
   );

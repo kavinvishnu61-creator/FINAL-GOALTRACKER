@@ -30,7 +30,7 @@ export function FocusPage() {
         const elapsed = Math.floor((Date.now() - startTimeRef.current - pausedDurationRef.current) / 1000);
         const remaining = Math.max(0, duration * 60 - elapsed);
         setTimeLeft(remaining);
-        
+
         if (remaining <= 0 && activeSessionId) {
           completeFocusSession(activeSessionId);
           setIsRunning(false);
@@ -183,11 +183,10 @@ export function FocusPage() {
                   <button
                     key={d}
                     onClick={() => setDuration(d)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                      duration === d
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${duration === d
                         ? 'bg-indigo-500 text-white'
                         : 'bg-[#f3f4f6] dark:bg-[#252836] text-[#6b7280] hover:bg-[#e5e7eb] dark:hover:bg-[#2d3044]'
-                    }`}
+                      }`}
                   >
                     {d}m
                   </button>

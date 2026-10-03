@@ -185,11 +185,10 @@ function TaskRow({ task }: { task: any }) {
         <p className="text-sm truncate">{task.title}</p>
         {task.goalId && <p className="text-[11px] text-[#9ca3af] truncate">Linked to goal</p>}
       </div>
-      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-        task.priority === 'P1' ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400' :
-        task.priority === 'P2' ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400' :
-        'bg-[#f3f4f6] dark:bg-[#252836] text-[#6b7280]'
-      }`}>
+      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${task.priority === 'P1' ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400' :
+          task.priority === 'P2' ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400' :
+            'bg-[#f3f4f6] dark:bg-[#252836] text-[#6b7280]'
+        }`}>
         {task.priority}
       </span>
     </div>
@@ -204,11 +203,10 @@ function HabitRow({ habit, completed }: { habit: any; completed: boolean }) {
       onClick={() => toggleHabitCompletion(habit.id, today)}
       className="w-full flex items-center gap-3 group"
     >
-      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-        completed
+      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${completed
           ? 'border-emerald-500 bg-emerald-500'
           : 'border-[#d1d5db] dark:border-[#4b5563] group-hover:border-emerald-400'
-      }`}>
+        }`}>
         {completed && <CheckCircle2 className="w-3 h-3 text-white" />}
       </div>
       <span className={`text-sm ${completed ? 'line-through text-[#9ca3af]' : ''}`}>{habit.name}</span>
@@ -223,17 +221,16 @@ function StreakMini() {
   const { getStreakData } = useStore();
   const data = getStreakData().slice(-7);
   const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  
+
   return (
     <div className="flex items-end justify-between gap-2">
       {data.map((day, i) => (
         <div key={day.date} className="flex flex-col items-center gap-1.5">
-          <div className={`w-6 h-6 rounded-md transition-all ${
-            day.status === 'completed' ? 'bg-emerald-500' :
-            day.status === 'partial' ? 'bg-amber-400' :
-            day.status === 'missed' ? 'bg-red-400/30' :
-            'bg-[#f3f4f6] dark:bg-[#252836]'
-          }`} />
+          <div className={`w-6 h-6 rounded-md transition-all ${day.status === 'completed' ? 'bg-emerald-500' :
+              day.status === 'partial' ? 'bg-amber-400' :
+                day.status === 'missed' ? 'bg-red-400/30' :
+                  'bg-[#f3f4f6] dark:bg-[#252836]'
+            }`} />
           <span className="text-[10px] text-[#9ca3af]">{days[new Date(day.date).getDay()]}</span>
         </div>
       ))}

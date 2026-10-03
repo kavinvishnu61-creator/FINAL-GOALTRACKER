@@ -9,15 +9,17 @@ import { HabitsPage } from './pages/HabitsPage';
 import { FocusPage } from './pages/FocusPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
+import { LoginPage } from './pages/LoginPage';
 import { CommandPalette } from './components/CommandPalette';
 import { ViewPage } from './types';
 
 export default function App() {
-  const { currentPage, theme, setTheme, selectedGoalId, setSelectedGoalId, setShowCommandPalette, showCommandPalette } = useStore();
+  const { currentPage, theme, setTheme, selectedGoalId, setSelectedGoalId, setShowCommandPalette, showCommandPalette, user, goals } = useStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    useStore.getState().cleanupOrphanedEvents();
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
     if (savedTheme) setTheme(savedTheme);
   }, []);
@@ -49,7 +51,10 @@ export default function App() {
 
   const renderPage = () => {
     if (selectedGoalId) {
-      return <GoalDetailPage />;
+      const exists = (goals || []).some(g => g.id === selectedGoalId);
+      if (exists) {
+        return <GoalDetailPage />;
+      }
     }
     switch (currentPage) {
       case 'home': return <HomePage />;
@@ -63,7 +68,8 @@ export default function App() {
     }
   };
 
-  if (!mounted) return null;
+// removed mounted check
+  if (!user) return <LoginPage />;
 
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-[#f8f9fb] dark:bg-[#0f1117] text-[#1a1d2e] dark:text-[#e4e6ed] transition-colors duration-200">
