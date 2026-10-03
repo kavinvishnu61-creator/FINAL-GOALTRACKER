@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, User as SupabaseAuthUser } from '@supabase/supabase-js';
 
 const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL || 'https://incbvivyzfhcbnqrzzrx.supabase.co';
@@ -23,6 +23,62 @@ export interface UserSyncPayload {
 }
 
 /**
+ * Sign up with Email and Password
+ */
+export async function signUpWithEmail(name: string, email: string, password: string) {
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name },
+      },
+    });
+    return { data, error };
+  } catch (err: any) {
+    return { data: null, error: err };
+  }
+}
+
+/**
+ * Sign in with Email and Password
+ */
+export async function signInWithEmail(email: string, password: string) {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { data, error };
+  } catch (err: any) {
+    return { data: null, error: err };
+  }
+}
+
+/**
+ * Sign out of Supabase
+ */
+export async function signOutAuth() {
+  try {
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.warn('Sign out error:', err);
+  }
+}
+
+/**
+ * Get current session user if authenticated
+ */
+export async function getCurrentAuthUser(): Promise<SupabaseAuthUser | null> {
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data?.user || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Saves user data payload to Supabase cloud
  */
 export async function syncToSupabase(userId: string, data: UserSyncPayload): Promise<boolean> {
@@ -40,7 +96,6 @@ export async function syncToSupabase(userId: string, data: UserSyncPayload): Pro
       );
 
     if (error) {
-      // Table may not yet be created or RLS error
       console.warn('[Supabase Sync Warning]:', error.message);
       return false;
     }

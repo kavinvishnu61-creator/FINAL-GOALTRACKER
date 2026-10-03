@@ -9,12 +9,12 @@ import {
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, parseISO, differenceInDays, isValid } from 'date-fns';
 
 import { safeFormat } from '../utils/date';
-import { syncToSupabase, loadFromSupabase, UserSyncPayload } from '../utils/supabase';
+import { syncToSupabase, loadFromSupabase, UserSyncPayload, signOutAuth } from '../utils/supabase';
 
 interface AppState {
   // Auth
   user: User | null;
-  login: (name: string, email: string) => void;
+  login: (name: string, email: string, customId?: string) => void;
   logout: () => void;
 
   // Cloud Sync
@@ -130,11 +130,14 @@ export const useStore = create<AppState>()(
     (set, get) => ({
       // Auth
       user: null,
-      login: (name, email) => {
+      login: (name, email, customId) => {
         const cleanEmail = (email || name).trim().toLowerCase();
-        let hashId = 'user_';
-        for (let i = 0; i < cleanEmail.length; i++) {
-          hashId += cleanEmail.charCodeAt(i).toString(16);
+        let hashId = customId;
+        if (!hashId) {
+          hashId = 'user_';
+          for (let i = 0; i < cleanEmail.length; i++) {
+            hashId += cleanEmail.charCodeAt(i).toString(16);
+          }
         }
         const user = { id: hashId, name, email: cleanEmail };
         set({ user });
@@ -143,6 +146,7 @@ export const useStore = create<AppState>()(
         });
       },
       logout: () => {
+        signOutAuth();
         set({ user: null, syncStatus: 'idle' });
       },
 
