@@ -2,7 +2,7 @@ import { useStore } from '../store';
 import { ViewPage } from '../types';
 import {
   Home, Target, Calendar, Flame, Timer, BarChart3,
-  Inbox, ChevronRight, Zap, Sun, Moon, Monitor
+  Inbox, ChevronRight, Zap, Sun, Moon, Monitor, Cloud
 } from 'lucide-react';
 
 const navItems: { id: ViewPage; label: string; icon: any }[] = [
@@ -16,7 +16,7 @@ const navItems: { id: ViewPage; label: string; icon: any }[] = [
 ];
 
 export function Sidebar() {
-  const { currentPage, setCurrentPage, theme, setTheme, selectedGoalId, setSelectedGoalId, getCurrentStreak } = useStore();
+  const { currentPage, setCurrentPage, theme, setTheme, selectedGoalId, setSelectedGoalId, getCurrentStreak, syncStatus, syncCloudData } = useStore();
   const streak = getCurrentStreak();
 
   return (
@@ -69,6 +69,23 @@ export function Sidebar() {
           <p className="text-[10px] text-orange-600/70 dark:text-orange-400/50 mt-1">Keep the momentum going!</p>
         </div>
       )}
+
+      {/* Cloud Sync Status */}
+      <div className="mx-3 mb-2 px-2.5 py-1.5 rounded-lg bg-[#f3f4f6]/60 dark:bg-[#1a1d2e]/60 flex items-center justify-between text-[11px] text-[#6b7280] dark:text-[#9ca3af]">
+        <div className="flex items-center gap-1.5">
+          <Cloud className={`w-3.5 h-3.5 ${syncStatus === 'syncing' ? 'text-amber-500 animate-pulse' : syncStatus === 'synced' ? 'text-emerald-500' : 'text-indigo-500'}`} />
+          <span className="font-medium text-[11px]">
+            {syncStatus === 'syncing' ? 'Syncing...' : syncStatus === 'synced' ? 'Cloud Synced' : 'Cloud Ready'}
+          </span>
+        </div>
+        <button
+          onClick={() => syncCloudData()}
+          title="Sync now to Supabase"
+          className="hover:text-indigo-500 transition-colors px-1"
+        >
+          ↻
+        </button>
+      </div>
 
       {/* Theme Toggle & Logout */}
       <div className="px-3 pb-4 space-y-2">

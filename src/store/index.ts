@@ -9,12 +9,19 @@ import {
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, parseISO, differenceInDays, isValid } from 'date-fns';
 
 import { safeFormat } from '../utils/date';
+import { syncToSupabase, loadFromSupabase, UserSyncPayload } from '../utils/supabase';
 
 interface AppState {
   // Auth
   user: User | null;
   login: (name: string, email: string) => void;
   logout: () => void;
+
+  // Cloud Sync
+  syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
+  lastSyncedAt: string | null;
+  syncCloudData: () => Promise<void>;
+  loadCloudData: () => Promise<void>;
 
   // Navigation
   currentPage: ViewPage;
@@ -106,16 +113,89 @@ const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308'
 
 
 
+let syncTimeout: any = null;
+export const triggerDebouncedSync = () => {
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(() => {
+    try {
+      useStore.getState().syncCloudData();
+    } catch (e) {
+      console.warn('Debounced sync error:', e);
+    }
+  }, 1000);
+};
+
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       // Auth
       user: null,
       login: (name, email) => {
-        set({ user: { id: uuidv4(), name, email } });
+        const cleanEmail = (email || name).trim().toLowerCase();
+        let hashId = 'user_';
+        for (let i = 0; i < cleanEmail.length; i++) {
+          hashId += cleanEmail.charCodeAt(i).toString(16);
+        }
+        const user = { id: hashId, name, email: cleanEmail };
+        set({ user });
+        get().loadCloudData().then(() => {
+          get().syncCloudData();
+        });
       },
       logout: () => {
-        set({ user: null });
+        set({ user: null, syncStatus: 'idle' });
+      },
+
+      // Cloud Sync
+      syncStatus: 'idle',
+      lastSyncedAt: null,
+      syncCloudData: async () => {
+        const state = get();
+        if (!state.user) return;
+        set({ syncStatus: 'syncing' });
+        const payload: UserSyncPayload = {
+          goals: state.goals,
+          milestones: state.milestones,
+          projects: state.projects,
+          tasks: state.tasks,
+          habits: state.habits,
+          habitCompletions: state.habitCompletions,
+          focusSessions: state.focusSessions,
+          calendarEvents: state.calendarEvents,
+          dailyReviews: state.dailyReviews,
+          weeklyReviews: state.weeklyReviews,
+          activityLog: state.activityLog,
+          theme: state.theme,
+        };
+        const ok = await syncToSupabase(state.user.id, payload);
+        if (ok) {
+          set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
+        } else {
+          set({ syncStatus: 'idle' });
+        }
+      },
+      loadCloudData: async () => {
+        const state = get();
+        if (!state.user) return;
+        set({ syncStatus: 'syncing' });
+        const cloudData = await loadFromSupabase(state.user.id);
+        if (cloudData) {
+          set((s) => ({
+            ...s,
+            goals: Array.isArray(cloudData.goals) && cloudData.goals.length ? cloudData.goals : s.goals,
+            milestones: Array.isArray(cloudData.milestones) && cloudData.milestones.length ? cloudData.milestones : s.milestones,
+            projects: Array.isArray(cloudData.projects) && cloudData.projects.length ? cloudData.projects : s.projects,
+            tasks: Array.isArray(cloudData.tasks) && cloudData.tasks.length ? cloudData.tasks : s.tasks,
+            habits: Array.isArray(cloudData.habits) && cloudData.habits.length ? cloudData.habits : s.habits,
+            habitCompletions: Array.isArray(cloudData.habitCompletions) && cloudData.habitCompletions.length ? cloudData.habitCompletions : s.habitCompletions,
+            focusSessions: Array.isArray(cloudData.focusSessions) && cloudData.focusSessions.length ? cloudData.focusSessions : s.focusSessions,
+            calendarEvents: Array.isArray(cloudData.calendarEvents) && cloudData.calendarEvents.length ? cloudData.calendarEvents : s.calendarEvents,
+            syncStatus: 'synced',
+            lastSyncedAt: new Date().toISOString(),
+          }));
+        } else {
+          set({ syncStatus: 'idle' });
+        }
       },
 
       // Navigation
