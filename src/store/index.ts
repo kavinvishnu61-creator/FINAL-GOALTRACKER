@@ -8,15 +8,7 @@ import {
 } from '../types';
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, parseISO, differenceInDays, isValid } from 'date-fns';
 
-const safeFormat = (date: Date | number | string, formatStr: string): string => {
-  try {
-    const d = typeof date === 'string' ? parseISO(date) : new Date(date);
-    if (!isValid(d)) return '';
-    return format(d, formatStr);
-  } catch (e) {
-    return '';
-  }
-};
+import { safeFormat } from '../utils/date';
 
 interface AppState {
   // Auth

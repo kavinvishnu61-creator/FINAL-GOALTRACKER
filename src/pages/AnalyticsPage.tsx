@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useStore } from '../store';
 import { format, subDays, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns';
+import { safeFormat } from '../utils/date';
 import { BarChart3, TrendingUp, Target, Flame, Timer, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts';
 
@@ -14,7 +15,8 @@ export function AnalyticsPage() {
   const completedTasks = tasks.filter(t => t.status === 'completed');
   const totalTasks = tasks.length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
-  const todaySessions = focusSessions.filter(s => s.status === 'completed' && s.endTime && format(new Date(s.endTime), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd'));
+  const todayStr = safeFormat(new Date(), 'yyyy-MM-dd');
+  const todaySessions = focusSessions.filter(s => s.status === 'completed' && s.endTime && safeFormat(s.endTime, 'yyyy-MM-dd') === todayStr);
   const todayPomos = todaySessions.length;
   const todayFocus = todaySessions.reduce((sum, s) => sum + s.actualDuration, 0);
 
@@ -22,12 +24,12 @@ export function AnalyticsPage() {
   const last7Days = useMemo(() => {
     const days = eachDayOfInterval({ start: subDays(new Date(), 6), end: new Date() });
     return days.map(day => {
-      const dateStr = format(day, 'yyyy-MM-dd');
-      const dayTasks = tasks.filter(t => t.completedAt && format(new Date(t.completedAt), 'yyyy-MM-dd') === dateStr).length;
-      const dayFocus = focusSessions.filter(s => s.status === 'completed' && s.endTime && format(new Date(s.endTime), 'yyyy-MM-dd') === dateStr).reduce((sum, s) => sum + s.actualDuration, 0);
+      const dateStr = safeFormat(day, 'yyyy-MM-dd');
+      const dayTasks = tasks.filter(t => t.completedAt && safeFormat(t.completedAt, 'yyyy-MM-dd') === dateStr).length;
+      const dayFocus = focusSessions.filter(s => s.status === 'completed' && s.endTime && safeFormat(s.endTime, 'yyyy-MM-dd') === dateStr).reduce((sum, s) => sum + s.actualDuration, 0);
       const dayHabits = habitCompletions.filter(c => c.date === dateStr).length;
       return {
-        date: format(day, 'EEE'),
+        date: safeFormat(day, 'EEE'),
         fullDate: dateStr,
         tasks: dayTasks,
         focus: dayFocus,
@@ -40,11 +42,11 @@ export function AnalyticsPage() {
   const heatmapData = useMemo(() => {
     const days = eachDayOfInterval({ start: subDays(new Date(), 89), end: new Date() });
     return days.map(day => {
-      const dateStr = format(day, 'yyyy-MM-dd');
-      const activity = tasks.filter(t => t.completedAt && format(new Date(t.completedAt), 'yyyy-MM-dd') === dateStr).length +
-        focusSessions.filter(s => s.status === 'completed' && s.endTime && format(new Date(s.endTime), 'yyyy-MM-dd') === dateStr).length +
+      const dateStr = safeFormat(day, 'yyyy-MM-dd');
+      const activity = tasks.filter(t => t.completedAt && safeFormat(t.completedAt, 'yyyy-MM-dd') === dateStr).length +
+        focusSessions.filter(s => s.status === 'completed' && s.endTime && safeFormat(s.endTime, 'yyyy-MM-dd') === dateStr).length +
         habitCompletions.filter(c => c.date === dateStr).length;
-      return { date: dateStr, activity, day: format(day, 'd') };
+      return { date: dateStr, activity, day: safeFormat(day, 'd') };
     });
   }, [tasks, focusSessions, habitCompletions]);
 

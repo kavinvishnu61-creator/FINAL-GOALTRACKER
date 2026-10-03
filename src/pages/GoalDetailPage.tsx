@@ -9,16 +9,7 @@ import {
   ChevronLeft, ChevronRight, Calendar as CalendarIcon, Check
 } from 'lucide-react';
 
-function safeFormat(dateVal: any, formatStr: string, fallback = ''): string {
-  if (!dateVal) return fallback;
-  try {
-    const d = typeof dateVal === 'string' ? parseISO(dateVal) : new Date(dateVal);
-    if (isNaN(d.getTime())) return fallback;
-    return format(d, formatStr);
-  } catch {
-    return fallback;
-  }
-}
+import { safeFormat } from '../utils/date';
 
 export function GoalDetailPage() {
   const {

@@ -3,16 +3,7 @@ import { useStore } from '../store';
 import { format, parseISO } from 'date-fns';
 import { CheckCircle2, Circle, Clock, Flame, Timer, Plus, Target, Zap, Calendar, Trash2 } from 'lucide-react';
 
-function safeFormat(dateVal: any, formatStr: string, fallback = ''): string {
-  if (!dateVal) return fallback;
-  try {
-    const d = typeof dateVal === 'string' ? parseISO(dateVal) : new Date(dateVal);
-    if (isNaN(d.getTime())) return fallback;
-    return format(d, formatStr);
-  } catch {
-    return fallback;
-  }
-}
+import { safeFormat } from '../utils/date';
 
 export function TodayPage() {
   const { tasks, habits, calendarEvents, getCurrentStreak, getFocusToday, getTodayHabits, toggleTaskComplete, deleteTask, toggleHabitCompletion, toggleCalendarEventComplete, addTask, setCurrentPage, setSelectedGoalId, goals } = useStore();

@@ -1,5 +1,6 @@
 import { useStore } from '../store';
 import { format } from 'date-fns';
+import { safeFormat } from '../utils/date';
 import { Target, Flame, Timer, CheckCircle2, ArrowRight, TrendingUp, Zap } from 'lucide-react';
 
 export function HomePage() {
@@ -99,7 +100,7 @@ export function HomePage() {
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-[11px] text-[#9ca3af]">{goal.category}</span>
-                      <span className="text-[11px] text-[#9ca3af]">Due {format(new Date(goal.targetDate), 'MMM d')}</span>
+                      <span className="text-[11px] text-[#9ca3af]">Due {safeFormat(goal.targetDate, 'MMM d', 'No target')}</span>
                     </div>
                   </button>
                 ))

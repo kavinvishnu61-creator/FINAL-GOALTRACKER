@@ -3,16 +3,7 @@ import { useStore } from '../store';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isToday, addMonths, subMonths, getDay, parseISO } from 'date-fns';
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
-function safeFormat(dateVal: any, formatStr: string, fallback = ''): string {
-  if (!dateVal) return fallback;
-  try {
-    const d = typeof dateVal === 'string' ? parseISO(dateVal) : new Date(dateVal);
-    if (isNaN(d.getTime())) return fallback;
-    return format(d, formatStr);
-  } catch {
-    return fallback;
-  }
-}
+import { safeFormat } from '../utils/date';
 
 export function CalendarPage() {
   const { calendarEvents, tasks, habits, habitCompletions, focusSessions, addCalendarEvent, deleteCalendarEvent, goals } = useStore();

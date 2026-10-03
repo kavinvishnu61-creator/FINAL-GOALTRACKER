@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { format } from 'date-fns';
+import { safeFormat } from '../utils/date';
 import { Play, Pause, RotateCcw, Square, Timer, Target, Zap } from 'lucide-react';
 
 export function FocusPage() {
@@ -21,7 +22,8 @@ export function FocusPage() {
   const todayFocus = getFocusToday();
   const totalFocus = getTotalFocus();
   const completedSessions = focusSessions.filter(s => s.status === 'completed');
-  const todaySessions = completedSessions.filter(s => s.endTime && format(new Date(s.endTime), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd'));
+  const todayStr = safeFormat(new Date(), 'yyyy-MM-dd');
+  const todaySessions = completedSessions.filter(s => s.endTime && safeFormat(s.endTime, 'yyyy-MM-dd') === todayStr);
 
   // Timer logic using real timestamps
   useEffect(() => {
@@ -263,7 +265,7 @@ export function FocusPage() {
                   <div>
                     <p className="text-xs font-medium">{session.actualDuration}m</p>
                     <p className="text-[10px] text-[#9ca3af]">
-                      {session.endTime ? format(new Date(session.endTime), 'MMM d, h:mm a') : ''}
+                      {safeFormat(session.endTime, 'MMM d, h:mm a')}
                     </p>
                   </div>
                   {session.goalId && (

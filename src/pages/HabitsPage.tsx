@@ -53,8 +53,9 @@ export function HabitsPage() {
               </select>
               <input
                 type="number"
-                value={newHabit.target}
-                onChange={(e) => setNewHabit({ ...newHabit, target: parseInt(e.target.value) })}
+                min="1"
+                value={newHabit.target || ''}
+                onChange={(e) => setNewHabit({ ...newHabit, target: parseInt(e.target.value) || 1 })}
                 className="px-3 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] bg-transparent text-sm outline-none w-20"
                 placeholder="Target"
               />

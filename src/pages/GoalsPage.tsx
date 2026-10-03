@@ -4,16 +4,7 @@ import { format, parseISO } from 'date-fns';
 import { Plus, Target, MoreHorizontal, Calendar, TrendingUp, Flame, CheckCircle2 } from 'lucide-react';
 import { GoalStatus, Priority } from '../types';
 
-function safeFormat(dateVal: any, formatStr: string, fallback = ''): string {
-  if (!dateVal) return fallback;
-  try {
-    const d = typeof dateVal === 'string' ? parseISO(dateVal) : new Date(dateVal);
-    if (isNaN(d.getTime())) return fallback;
-    return format(d, formatStr);
-  } catch {
-    return fallback;
-  }
-}
+import { safeFormat } from '../utils/date';
 
 export function GoalsPage() {
   const { goals, addGoal, updateGoal, deleteGoal, setSelectedGoalId, milestones, projects, tasks, getGoalProgress, getGoalStreak } = useStore();
