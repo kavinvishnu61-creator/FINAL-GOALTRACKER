@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { format, parseISO } from 'date-fns';
-import { Plus, Target, MoreHorizontal, Calendar, TrendingUp, Flame, CheckCircle2 } from 'lucide-react';
-import { GoalStatus, Priority } from '../types';
+import { Plus, Target, MoreHorizontal, Calendar, TrendingUp, Flame, CheckCircle2, Pencil } from 'lucide-react';
+import { Goal, GoalStatus, Priority } from '../types';
+import { EditGoalModal } from '../components/EditGoalModal';
 
 import { safeFormat } from '../utils/date';
 
 export function GoalsPage() {
   const { goals, addGoal, updateGoal, deleteGoal, setSelectedGoalId, milestones, projects, tasks, getGoalProgress, getGoalStreak } = useStore();
   const [showCreate, setShowCreate] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [filter, setFilter] = useState<GoalStatus | 'all'>('all');
   const [newGoal, setNewGoal] = useState({ title: '', description: '', category: 'General', priority: 'P2' as Priority, startDate: '', targetDate: '', optimizedTime: '09:00', optimizedEndTime: '10:00' });
 
@@ -160,23 +162,39 @@ export function GoalsPage() {
             const streakInfo = getGoalStreak(goal.id);
 
             return (
-              <button
+              <div
                 key={goal.id}
                 onClick={() => setSelectedGoalId(goal.id)}
-                className="bg-white dark:bg-[#181a24] rounded-xl border border-[#e5e7eb] dark:border-[#1e2030] p-5 text-left hover:border-[#d1d5db] dark:hover:border-[#2d3044] hover:shadow-sm transition-all group"
+                className="bg-white dark:bg-[#181a24] rounded-xl border border-[#e5e7eb] dark:border-[#1e2030] p-5 text-left hover:border-[#d1d5db] dark:hover:border-[#2d3044] hover:shadow-sm transition-all group cursor-pointer relative"
               >
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: goal.color }} />
-                    <h3 className="text-sm font-semibold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{goal.title}</h3>
+                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: goal.color }} />
+                    <h3 className="text-sm font-semibold group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                      {goal.title}
+                    </h3>
                   </div>
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${goal.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' :
-                      goal.status === 'planned' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400' :
-                        goal.status === 'completed' ? 'bg-[#f3f4f6] dark:bg-[#252836] text-[#6b7280]' :
-                          'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
-                    }`}>
-                    {goal.status}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${goal.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' :
+                        goal.status === 'planned' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400' :
+                          goal.status === 'completed' ? 'bg-[#f3f4f6] dark:bg-[#252836] text-[#6b7280]' :
+                            'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                      }`}>
+                      {goal.status}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingGoal(goal);
+                      }}
+                      className="p-1 rounded-md text-[#9ca3af] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+                      title="Edit Goal"
+                      aria-label={`Edit ${goal.title}`}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {goal.description && (
@@ -212,11 +230,23 @@ export function GoalsPage() {
                     <Calendar className="w-3 h-3" />{safeFormat(goal.targetDate, 'MMM d', 'No target')}
                   </span>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
       )}
+
+      {/* Edit Goal Modal */}
+      <EditGoalModal
+        goal={editingGoal}
+        isOpen={!!editingGoal}
+        onClose={() => setEditingGoal(null)}
+        onSave={(id, updates) => updateGoal(id, updates)}
+        onDelete={(id) => {
+          deleteGoal(id);
+          setEditingGoal(null);
+        }}
+      />
     </div>
   );
 }

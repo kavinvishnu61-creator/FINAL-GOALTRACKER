@@ -6,10 +6,12 @@ import {
 } from 'date-fns';
 import {
   ArrowLeft, Plus, Target, CheckCircle2, Clock, Flame, Trash2,
-  ChevronLeft, ChevronRight, Calendar as CalendarIcon, Check
+  ChevronLeft, ChevronRight, Calendar as CalendarIcon, Check, Pencil
 } from 'lucide-react';
 
 import { safeFormat } from '../utils/date';
+import { EditGoalModal } from '../components/EditGoalModal';
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 
 export function GoalDetailPage() {
   const {
@@ -27,6 +29,8 @@ export function GoalDetailPage() {
   const [newProject, setNewProject] = useState({ title: '', milestoneId: '' });
   const [newTask, setNewTask] = useState({ title: '', priority: 'P3' as const, estimatedDuration: 30 });
   const [viewMonth, setViewMonth] = useState(new Date());
+  const [showEditGoal, setShowEditGoal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const goal = (goals || []).find(g => g.id === selectedGoalId);
   if (!goal) {
@@ -85,6 +89,14 @@ export function GoalDetailPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowEditGoal(true)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] hover:bg-[#f9fafb] dark:hover:bg-[#1a1d2e] transition-colors"
+              title="Edit Goal"
+            >
+              <Pencil className="w-3.5 h-3.5 text-[#6b7280]" />
+              <span>Edit</span>
+            </button>
+            <button
               onClick={() => {
                 const newStatus = goal.status === 'active' ? 'paused' : 'active';
                 updateGoal(goal.id, { status: newStatus });
@@ -94,8 +106,10 @@ export function GoalDetailPage() {
               {goal.status === 'active' ? 'Pause' : 'Resume'}
             </button>
             <button
-              onClick={() => { deleteGoal(goal.id); setSelectedGoalId(null); }}
-              className="text-xs px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-xs px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              title="Delete Goal"
+              aria-label="Delete Goal"
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -570,6 +584,31 @@ export function GoalDetailPage() {
           </button>
         </div>
       )}
+
+      {/* Edit Goal Modal */}
+      <EditGoalModal
+        goal={goal}
+        isOpen={showEditGoal}
+        onClose={() => setShowEditGoal(false)}
+        onSave={(id, updates) => updateGoal(id, updates)}
+        onDelete={(id) => {
+          deleteGoal(id);
+          setSelectedGoalId(null);
+        }}
+      />
+
+      {/* Confirm Delete Modal */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => {
+          deleteGoal(goal.id);
+          setSelectedGoalId(null);
+        }}
+        title="Delete Goal"
+        itemName={goal.title}
+        message="Are you sure you want to delete this goal? All associated milestones, projects, tasks, and daily calendar events will be permanently removed."
+      />
     </div>
   );
 }

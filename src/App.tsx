@@ -22,6 +22,32 @@ export default function App() {
     useStore.getState().cleanupOrphanedEvents();
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
     if (savedTheme) setTheme(savedTheme);
+
+    // If user is already authenticated from persistent storage, reconcile with cloud in background
+    if (useStore.getState().user) {
+      useStore.getState().loadCloudData();
+    }
+
+    // Flush any pending data sync when closing tab or backgrounding window
+    const handleFlushSync = () => {
+      const state = useStore.getState();
+      if (state.user) {
+        state.syncCloudData();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleFlushSync);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        handleFlushSync();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleFlushSync);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   useEffect(() => {

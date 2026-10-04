@@ -1,18 +1,26 @@
 import { useState } from 'react';
 import { useStore } from '../store';
 import { format, subDays } from 'date-fns';
-import { Plus, Flame, CheckCircle2, Trash2 } from 'lucide-react';
+import { Plus, Flame, CheckCircle2, Trash2, Pencil } from 'lucide-react';
+import { Habit } from '../types';
+import { EditHabitModal } from '../components/EditHabitModal';
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 
 export function HabitsPage() {
-  const { habits, habitCompletions, addHabit, deleteHabit, toggleHabitCompletion, goals } = useStore();
+  const { habits, habitCompletions, addHabit, updateHabit, deleteHabit, toggleHabitCompletion, goals } = useStore();
   const [showCreate, setShowCreate] = useState(false);
-  const [newHabit, setNewHabit] = useState({ name: '', frequency: 'daily' as const, target: 1, unit: 'times', color: '#6366f1' });
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
+  const [newHabit, setNewHabit] = useState({ name: '', description: '', frequency: 'daily' as const, target: 1, unit: 'times', goalId: '', color: '#6366f1' });
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const handleCreate = () => {
     if (!newHabit.name.trim()) return;
-    addHabit(newHabit);
-    setNewHabit({ name: '', frequency: 'daily', target: 1, unit: 'times', color: '#6366f1' });
+    addHabit({
+      ...newHabit,
+      goalId: newHabit.goalId ? newHabit.goalId : undefined,
+    });
+    setNewHabit({ name: '', description: '', frequency: 'daily', target: 1, unit: 'times', goalId: '', color: '#6366f1' });
     setShowCreate(false);
   };
 
@@ -41,7 +49,7 @@ export function HabitsPage() {
               placeholder="Habit name (e.g., Exercise, Read, Meditate)"
               className="w-full px-3 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] bg-transparent text-sm outline-none focus:border-indigo-500"
             />
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <select
                 value={newHabit.frequency}
                 onChange={(e) => setNewHabit({ ...newHabit, frequency: e.target.value as any })}
@@ -65,6 +73,18 @@ export function HabitsPage() {
                 placeholder="Unit"
                 className="px-3 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] bg-transparent text-sm outline-none w-24"
               />
+              <select
+                value={newHabit.goalId}
+                onChange={(e) => setNewHabit({ ...newHabit, goalId: e.target.value })}
+                className="px-3 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] bg-transparent text-sm outline-none"
+              >
+                <option value="">No Linked Goal</option>
+                {goals.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.title}
+                  </option>
+                ))}
+              </select>
               <div className="flex items-center gap-1">
                 {['#6366f1', '#22c55e', '#f97316', '#ec4899', '#06b6d4', '#eab308'].map(c => (
                   <button
@@ -107,8 +127,8 @@ export function HabitsPage() {
                     </div>
                     {goal && <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">{goal.title}</span>}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    <div className="text-right mr-1">
                       <p className="text-sm font-bold" style={{ color: habit.color }}>{habit.currentStreak}🔥</p>
                       <p className="text-[10px] text-[#9ca3af]">Best: {habit.longestStreak}</p>
                     </div>
@@ -118,10 +138,24 @@ export function HabitsPage() {
                           ? 'border-emerald-500 bg-emerald-500 text-white'
                           : 'border-[#d1d5db] dark:border-[#4b5563] hover:border-emerald-400'
                         }`}
+                      title={isCompletedToday ? "Mark Incomplete" : "Mark Complete"}
                     >
                       {isCompletedToday && <CheckCircle2 className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => deleteHabit(habit.id)} className="text-[#9ca3af] hover:text-red-500 transition-colors">
+                    <button
+                      onClick={() => setEditingHabit(habit)}
+                      className="p-2 text-[#9ca3af] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
+                      title="Edit Habit"
+                      aria-label={`Edit ${habit.name}`}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setHabitToDelete(habit)}
+                      className="p-2 text-[#9ca3af] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Delete Habit"
+                      aria-label={`Delete ${habit.name}`}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -152,6 +186,34 @@ export function HabitsPage() {
           })}
         </div>
       )}
+
+      {/* Edit Habit Modal */}
+      <EditHabitModal
+        habit={editingHabit}
+        isOpen={!!editingHabit}
+        onClose={() => setEditingHabit(null)}
+        onSave={(id, updates) => updateHabit(id, updates)}
+        onDelete={(id) => {
+          deleteHabit(id);
+          setEditingHabit(null);
+        }}
+        goals={goals}
+      />
+
+      {/* Confirm Delete Modal */}
+      <ConfirmDeleteModal
+        isOpen={!!habitToDelete}
+        onClose={() => setHabitToDelete(null)}
+        onConfirm={() => {
+          if (habitToDelete) {
+            deleteHabit(habitToDelete.id);
+            setHabitToDelete(null);
+          }
+        }}
+        title="Delete Habit"
+        itemName={habitToDelete?.name}
+        message="Are you sure you want to delete this habit? All recorded streaks and completion history for this habit will be permanently deleted."
+      />
     </div>
   );
 }

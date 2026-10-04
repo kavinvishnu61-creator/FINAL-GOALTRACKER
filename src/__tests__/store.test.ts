@@ -72,4 +72,64 @@ describe('Store functionality', () => {
     // Crucial check: User A's goal must be restored!
     expect(useStore.getState().goals.some((g) => g.id === goalAId)).toBe(true);
   });
+
+  it('can edit a goal and sync calendar events', () => {
+    const goalId = useStore.getState().addGoal({
+      title: 'Initial Goal Title',
+      category: 'General',
+      priority: 'P2',
+      color: '#6366f1',
+      optimizedTime: '09:00',
+      optimizedEndTime: '10:00',
+    });
+
+    useStore.getState().updateGoal(goalId, {
+      title: 'Updated Goal Title',
+      category: 'Health',
+      priority: 'P1',
+      color: '#22c55e',
+      optimizedTime: '07:00',
+      optimizedEndTime: '08:00',
+    });
+
+    const updatedGoal = useStore.getState().goals.find(g => g.id === goalId);
+    expect(updatedGoal?.title).toBe('Updated Goal Title');
+    expect(updatedGoal?.category).toBe('Health');
+    expect(updatedGoal?.priority).toBe('P1');
+    expect(updatedGoal?.color).toBe('#22c55e');
+
+    const goalEvents = useStore.getState().calendarEvents.filter(e => e.goalId === goalId);
+    if (goalEvents.length > 0) {
+      expect(goalEvents[0].title).toBe('Goal: Updated Goal Title');
+      expect(goalEvents[0].color).toBe('#22c55e');
+      expect(goalEvents[0].startTime).toBe('07:00');
+      expect(goalEvents[0].endTime).toBe('08:00');
+    }
+  });
+
+  it('can edit a habit', () => {
+    useStore.getState().addHabit({
+      name: 'Initial Habit',
+      frequency: 'daily',
+      target: 1,
+      unit: 'times',
+      color: '#6366f1',
+    });
+
+    const habit = useStore.getState().habits.find(h => h.name === 'Initial Habit');
+    expect(habit).toBeDefined();
+
+    useStore.getState().updateHabit(habit!.id, {
+      name: 'Updated Habit',
+      target: 20,
+      unit: 'pages',
+      color: '#ec4899',
+    });
+
+    const updatedHabit = useStore.getState().habits.find(h => h.id === habit!.id);
+    expect(updatedHabit?.name).toBe('Updated Habit');
+    expect(updatedHabit?.target).toBe(20);
+    expect(updatedHabit?.unit).toBe('pages');
+    expect(updatedHabit?.color).toBe('#ec4899');
+  });
 });

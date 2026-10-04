@@ -466,11 +466,32 @@ export const useStore = create<AppState>()(
       },
 
       updateGoal: (id, updates) => {
-        set((state) => ({
-          goals: state.goals.map((g) =>
+        set((state) => {
+          const updatedGoals = state.goals.map((g) =>
             g.id === id ? { ...g, ...updates, updatedAt: new Date().toISOString() } : g
-          ),
-        }));
+          );
+
+          let updatedEvents = state.calendarEvents;
+          if (updates.title || updates.color || updates.optimizedTime || updates.optimizedEndTime) {
+            updatedEvents = updatedEvents.map((e) => {
+              if (e.goalId === id) {
+                return {
+                  ...e,
+                  title: updates.title ? `Goal: ${updates.title}` : e.title,
+                  color: updates.color || e.color,
+                  startTime: updates.optimizedTime || e.startTime,
+                  endTime: updates.optimizedEndTime || e.endTime,
+                };
+              }
+              return e;
+            });
+          }
+
+          return {
+            goals: updatedGoals,
+            calendarEvents: updatedEvents,
+          };
+        });
       },
 
       deleteGoal: (id) => {
