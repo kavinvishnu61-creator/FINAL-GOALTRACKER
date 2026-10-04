@@ -95,6 +95,7 @@ export function GoalDetailPage() {
             </button>
             <button
               onClick={() => { deleteGoal(goal.id); setSelectedGoalId(null); }}
+              aria-label="Delete goal"
               className="text-xs px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
             >
               <Trash2 className="w-3 h-3" />
