@@ -118,10 +118,17 @@ export function HabitsPage() {
                           ? 'border-emerald-500 bg-emerald-500 text-white'
                           : 'border-[#d1d5db] dark:border-[#4b5563] hover:border-emerald-400'
                         }`}
+                      aria-label={isCompletedToday ? `Mark ${habit.name} as incomplete` : `Mark ${habit.name} as complete`}
+                      title={isCompletedToday ? "Mark as incomplete" : "Mark as complete"}
                     >
                       {isCompletedToday && <CheckCircle2 className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => deleteHabit(habit.id)} className="text-[#9ca3af] hover:text-red-500 transition-colors">
+                    <button
+                      onClick={() => deleteHabit(habit.id)}
+                      className="text-[#9ca3af] hover:text-red-500 transition-colors"
+                      aria-label={`Delete ${habit.name} habit`}
+                      title="Delete habit"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
