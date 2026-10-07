@@ -66,12 +66,20 @@ export function HabitsPage() {
                 className="px-3 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2d3044] bg-transparent text-sm outline-none w-24"
               />
               <div className="flex items-center gap-1">
-                {['#6366f1', '#22c55e', '#f97316', '#ec4899', '#06b6d4', '#eab308'].map(c => (
+                {[
+                  { color: '#6366f1', name: 'Indigo' },
+                  { color: '#22c55e', name: 'Green' },
+                  { color: '#f97316', name: 'Orange' },
+                  { color: '#ec4899', name: 'Pink' },
+                  { color: '#06b6d4', name: 'Cyan' },
+                  { color: '#eab308', name: 'Yellow' }
+                ].map(c => (
                   <button
-                    key={c}
-                    onClick={() => setNewHabit({ ...newHabit, color: c })}
-                    className={`w-5 h-5 rounded-full border-2 ${newHabit.color === c ? 'border-white ring-2 ring-offset-1 ring-offset-[#181a24]' : 'border-transparent'}`}
-                    style={{ backgroundColor: c }}
+                    key={c.color}
+                    aria-label={`Select color ${c.name}`}
+                    onClick={() => setNewHabit({ ...newHabit, color: c.color })}
+                    className={`w-5 h-5 rounded-full border-2 ${newHabit.color === c.color ? 'border-white ring-2 ring-offset-1 ring-offset-[#181a24]' : 'border-transparent'}`}
+                    style={{ backgroundColor: c.color }}
                   />
                 ))}
               </div>
@@ -113,6 +121,7 @@ export function HabitsPage() {
                       <p className="text-[10px] text-[#9ca3af]">Best: {habit.longestStreak}</p>
                     </div>
                     <button
+                      aria-label={isCompletedToday ? 'Mark habit as incomplete' : 'Mark habit as complete'}
                       onClick={() => toggleHabitCompletion(habit.id, today)}
                       className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${isCompletedToday
                           ? 'border-emerald-500 bg-emerald-500 text-white'
@@ -121,7 +130,7 @@ export function HabitsPage() {
                     >
                       {isCompletedToday && <CheckCircle2 className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => deleteHabit(habit.id)} className="text-[#9ca3af] hover:text-red-500 transition-colors">
+                    <button aria-label="Delete habit" onClick={() => deleteHabit(habit.id)} className="text-[#9ca3af] hover:text-red-500 transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
