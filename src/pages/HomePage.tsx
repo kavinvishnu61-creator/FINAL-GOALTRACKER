@@ -179,8 +179,9 @@ function TaskRow({ task }: { task: any }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 border-b border-[#f3f4f6] dark:border-[#1e2030] last:border-0 group">
       <button
+        aria-label={`Toggle completion for ${task.title}`}
         onClick={() => toggleTaskComplete(task.id)}
-        className="w-4 h-4 rounded border-2 border-[#d1d5db] dark:border-[#4b5563] hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors shrink-0"
+        className="w-4 h-4 rounded border-2 border-[#d1d5db] dark:border-[#4b5563] hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-indigo-500"
       />
       <div className="flex-1 min-w-0">
         <p className="text-sm truncate">{task.title}</p>
