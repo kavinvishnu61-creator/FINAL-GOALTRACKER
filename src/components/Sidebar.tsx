@@ -33,7 +33,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-2 space-y-0.5">
+      <nav className="flex-1 px-3 py-2 space-y-0.5" aria-label="Main Navigation">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === item.id && !selectedGoalId;
@@ -41,6 +41,7 @@ export function Sidebar() {
             <button
               key={item.id}
               onClick={() => { setCurrentPage(item.id); setSelectedGoalId(null); }}
+              aria-current={isActive ? 'page' : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150
                 ${isActive
                   ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400'
@@ -72,14 +73,22 @@ export function Sidebar() {
 
       {/* Theme Toggle & Logout */}
       <div className="px-3 pb-4 space-y-2">
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-[#f3f4f6] dark:bg-[#1a1d2e]">
+        <div
+          className="flex items-center gap-1 p-1 rounded-lg bg-[#f3f4f6] dark:bg-[#1a1d2e]"
+          role="radiogroup"
+          aria-label="Theme preference"
+        >
           {(['light', 'dark', 'system'] as const).map((t) => {
             const Icon = t === 'light' ? Sun : t === 'dark' ? Moon : Monitor;
             return (
               <button
                 key={t}
                 onClick={() => { setTheme(t); localStorage.setItem('theme', t); }}
-                className={`flex-1 flex items-center justify-center py-1.5 rounded-md transition-all duration-150
+                role="radio"
+                aria-checked={theme === t}
+                aria-label={`Switch to ${t} theme`}
+                title={`${t.charAt(0).toUpperCase() + t.slice(1)} theme`}
+                className={`flex-1 flex items-center justify-center py-1.5 rounded-md transition-all duration-150 focus-visible:ring-2 focus-visible:ring-indigo-500
                   ${theme === t
                     ? 'bg-white dark:bg-[#252836] shadow-sm text-[#1f2937] dark:text-[#e5e7eb]'
                     : 'text-[#9ca3af] hover:text-[#6b7280] dark:hover:text-[#d1d5db]'
