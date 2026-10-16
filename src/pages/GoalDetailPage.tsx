@@ -94,7 +94,14 @@ export function GoalDetailPage() {
               {goal.status === 'active' ? 'Pause' : 'Resume'}
             </button>
             <button
-              onClick={() => { deleteGoal(goal.id); setSelectedGoalId(null); }}
+              onClick={() => {
+                if (window.confirm('Are you sure you want to delete this goal? This action cannot be undone.')) {
+                  deleteGoal(goal.id);
+                  setSelectedGoalId(null);
+                }
+              }}
+              aria-label="Delete goal"
+              title="Delete goal"
               className="text-xs px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
             >
               <Trash2 className="w-3 h-3" />

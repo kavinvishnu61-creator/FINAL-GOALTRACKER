@@ -121,7 +121,16 @@ export function HabitsPage() {
                     >
                       {isCompletedToday && <CheckCircle2 className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => deleteHabit(habit.id)} className="text-[#9ca3af] hover:text-red-500 transition-colors">
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Are you sure you want to delete this habit? All its history will be lost.')) {
+                          deleteHabit(habit.id);
+                        }
+                      }}
+                      aria-label="Delete habit"
+                      title="Delete habit"
+                      className="text-[#9ca3af] hover:text-red-500 transition-colors"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
