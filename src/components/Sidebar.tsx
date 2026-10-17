@@ -78,6 +78,7 @@ export function Sidebar() {
             return (
               <button
                 key={t}
+                aria-label={`Switch to ${t} theme`}
                 onClick={() => { setTheme(t); localStorage.setItem('theme', t); }}
                 className={`flex-1 flex items-center justify-center py-1.5 rounded-md transition-all duration-150
                   ${theme === t

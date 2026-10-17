@@ -115,6 +115,7 @@ export function TodayPage() {
                   <div key={event.id} className="flex items-center gap-3 px-4 py-3 border-b border-[#f3f4f6] dark:border-[#1e2030] last:border-0 group hover:bg-[#fafbfc] dark:hover:bg-[#1a1d2e] transition-colors">
                     <button
                       onClick={() => toggleCalendarEventComplete(event.id)}
+                      aria-label={event.completed ? `Mark calendar event "${event.title}" as incomplete` : `Mark calendar event "${event.title}" as complete`}
                       className={`w-[18px] h-[18px] rounded-full border-2 transition-colors shrink-0 flex items-center justify-center ${
                         event.completed
                           ? 'bg-emerald-500 border-emerald-500 text-white'
