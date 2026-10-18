@@ -75,10 +75,13 @@ export function Sidebar() {
         <div className="flex items-center gap-1 p-1 rounded-lg bg-[#f3f4f6] dark:bg-[#1a1d2e]">
           {(['light', 'dark', 'system'] as const).map((t) => {
             const Icon = t === 'light' ? Sun : t === 'dark' ? Moon : Monitor;
+            const title = `Set theme to ${t}`;
             return (
               <button
                 key={t}
                 onClick={() => { setTheme(t); localStorage.setItem('theme', t); }}
+                title={title}
+                aria-label={title}
                 className={`flex-1 flex items-center justify-center py-1.5 rounded-md transition-all duration-150
                   ${theme === t
                     ? 'bg-white dark:bg-[#252836] shadow-sm text-[#1f2937] dark:text-[#e5e7eb]'

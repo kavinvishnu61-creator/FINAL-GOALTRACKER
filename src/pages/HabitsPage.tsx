@@ -70,6 +70,8 @@ export function HabitsPage() {
                   <button
                     key={c}
                     onClick={() => setNewHabit({ ...newHabit, color: c })}
+                    title={`Select color ${c}`}
+                    aria-label={`Select color ${c}`}
                     className={`w-5 h-5 rounded-full border-2 ${newHabit.color === c ? 'border-white ring-2 ring-offset-1 ring-offset-[#181a24]' : 'border-transparent'}`}
                     style={{ backgroundColor: c }}
                   />
@@ -114,6 +116,8 @@ export function HabitsPage() {
                     </div>
                     <button
                       onClick={() => toggleHabitCompletion(habit.id, today)}
+                      title={isCompletedToday ? "Mark habit as incomplete" : "Mark habit as complete"}
+                      aria-label={isCompletedToday ? "Mark habit as incomplete" : "Mark habit as complete"}
                       className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${isCompletedToday
                           ? 'border-emerald-500 bg-emerald-500 text-white'
                           : 'border-[#d1d5db] dark:border-[#4b5563] hover:border-emerald-400'
@@ -121,7 +125,7 @@ export function HabitsPage() {
                     >
                       {isCompletedToday && <CheckCircle2 className="w-4 h-4" />}
                     </button>
-                    <button onClick={() => deleteHabit(habit.id)} className="text-[#9ca3af] hover:text-red-500 transition-colors">
+                    <button onClick={() => deleteHabit(habit.id)} title="Delete habit" aria-label="Delete habit" className="text-[#9ca3af] hover:text-red-500 transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
