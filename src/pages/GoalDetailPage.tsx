@@ -95,6 +95,8 @@ export function GoalDetailPage() {
             </button>
             <button
               onClick={() => { deleteGoal(goal.id); setSelectedGoalId(null); }}
+              title="Delete goal"
+              aria-label="Delete goal"
               className="text-xs px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
             >
               <Trash2 className="w-3 h-3" />
@@ -464,6 +466,7 @@ export function GoalDetailPage() {
                 <button
                   onClick={() => deleteTask(task.id)}
                   title="Delete task from goal"
+                  aria-label="Delete task from goal"
                   className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 text-[#9ca3af] transition-all shrink-0"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
